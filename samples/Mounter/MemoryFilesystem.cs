@@ -106,58 +106,36 @@ namespace Mounter
 
             public IEntry FindEntry(ReadOnlySpan<byte> path)
             {
-                (IEntry entry, bool created) = FindEntry(path, null);
-                return entry;
-            }
-
-            public (IEntry entry, bool created) FindEntry(ReadOnlySpan<byte> path, Func<IEntry> createEntry)
-            {
                 while (path.Length > 0 && path[0] == (byte)'/')
                 {
                     path = path.Slice(1);
                 }
                 if (path.Length == 0)
                 {
-                    return (this, false);
+                    return this;
                 }
                 int endOfName = path.IndexOf((byte)'/');
                 bool directChild = endOfName == -1;
                 ReadOnlySpan<byte> name = directChild ? path : path.Slice(0, endOfName);
-                if (Entries.TryGetValue(name.ToArray(), out IEntry value))
+                if (Entries.TryGetValue(name, out IEntry value))
                 {
                     if (directChild)
                     {
-                        return (value, false);
+                        return value;
                     }
                     else
                     {
                         Directory dir = value as Directory;
                         if (dir == null)
                         {
-                            return (null, false);
+                            return null;
                         }
-                        return dir.FindEntry(path.Slice(endOfName + 1), createEntry);
+                        return dir.FindEntry(path.Slice(endOfName + 1));
                     }
                 }
                 else
                 {
-                    if (directChild)
-                    {
-                        if (createEntry != null)
-                        {
-                            IEntry newEntry = createEntry();
-                            Entries[name.ToArray()] = newEntry;
-                            return (newEntry, true);
-                        }
-                        else
-                        {
-                            return (null, false);
-                        }
-                    }
-                    else
-                    {
-                        return (null, false);
-                    }
+                    return null;
                 }
             }
 
@@ -190,9 +168,7 @@ namespace Mounter
             private readonly File _file;
 
             public OpenFile(File file)
-            {
-                _file = file;
-            }
+                => _file = file;
 
             public int Read(ulong offset, Span<byte> buffer)
                 => _file.Read(offset, buffer);
@@ -207,6 +183,7 @@ namespace Mounter
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
+            // Add some stuff.
             _root.AddFile("file1", "Content of file1");
             Directory sampleDir = _root.AddDirectory("empty_dir");
             Directory dirWithFiles = _root.AddDirectory("dir_with_files");
@@ -227,7 +204,7 @@ namespace Mounter
                 case Directory directory:
                     stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
                     int dirCount = 0;
-                    foreach (var child in directory.Entries)
+                    foreach (var child in directory.Entries.Values)
                     {
                         if (child is Directory) dirCount++;
                     }
@@ -248,15 +225,12 @@ namespace Mounter
         public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi)
             => _openFiles[fi.FileDescriptor].Write(offset, buffer);
 
-        public override int Release(ReadOnlySpan<byte> path, FileInfo fi)
-        {
-            _openFiles.Remove(fi.FileDescriptor);
-            return 0;
-        }
+        public override void Release(ReadOnlySpan<byte> path, FileInfo fi)
+            => _openFiles.Remove(fi.FileDescriptor);
 
         public override int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
         {
-            if (fi.FileDescriptor == 0)
+            if (fi.FileDescriptor != 0)
             {
                 _openFiles[fi.FileDescriptor].Truncate(length);
                 return 0;
@@ -361,6 +335,7 @@ namespace Mounter
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
             }
+
             if (entry == null)
             {
                 if ((fi.Flags & O_CREAT) != 0)

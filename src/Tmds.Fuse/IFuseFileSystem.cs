@@ -130,7 +130,7 @@ namespace Tmds.Fuse
     {
         int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi);
         int Open(ReadOnlySpan<byte> path, FileInfo fi);
-        int Release(ReadOnlySpan<byte> path, FileInfo fi);
+        void Release(ReadOnlySpan<byte> path, FileInfo fi);
         int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi);
         int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi);
         int RmDir(ReadOnlySpan<byte> path);
@@ -161,8 +161,8 @@ namespace Tmds.Fuse
         public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Release(ReadOnlySpan<byte> path, FileInfo fi)
-            => FuseConstants.ENOSYS;
+        public virtual void Release(ReadOnlySpan<byte> path, FileInfo fi)
+        { }
 
         public virtual int RmDir(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
