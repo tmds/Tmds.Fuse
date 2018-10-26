@@ -68,9 +68,10 @@ namespace Mounter
 
             public int Truncate(ulong length)
             {
+                // Do we support this size?
                 if (length > int.MaxValue)
                 {
-                    return EFBIG;
+                    return EINVAL;
                 }
 
                 Array.Resize(ref _content, (int)length);
@@ -80,7 +81,7 @@ namespace Mounter
 
             public int Write(ulong offset, ReadOnlySpan<byte> buffer)
             {
-                // Check if our file system supports this size
+                // Do we support this size?
                 ulong newLength = offset + (ulong)buffer.Length;
                 if (newLength > int.MaxValue || offset > int.MaxValue)
                 {
@@ -170,15 +171,18 @@ namespace Mounter
                 return directory;
             }
 
-            public void AddFile(string name, string content)
+            public File AddFile(string name, string content)
+                => AddFile(Encoding.UTF8.GetBytes(name), Encoding.UTF8.GetBytes(content));
+
+            public File AddFile(ReadOnlySpan<byte> name, byte[] content)
             {
-                Entries.Add(Encoding.UTF8.GetBytes(name), new File(Encoding.UTF8.GetBytes(content)));
+                var file = new File(content);
+                Entries.Add(name, file);
+                return file;
             }
 
             public void Remove(ReadOnlySpan<byte> name)
-            {
-                Entries.Remove(name);
-            }
+                => Entries.Remove(name);
         }
 
         class OpenFile
@@ -230,39 +234,12 @@ namespace Mounter
                     stat.NLink = 2 + dirCount; // TODO: do we really need this??
                     break;
                 case File f:
-                    stat.Mode = S_IFREG | 0b100_100_100; // r--r--r--
+                    stat.Mode = S_IFREG | 0b101_100_100; // r--r--r--
                     stat.NLink = 1;
                     stat.Size = f.Size;
                     break;
             }
             return 0;
-        }
-
-        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
-        {
-            IEntry entry = _root.FindEntry(path);
-            if (entry == null)
-            {
-                return ENOENT;
-            }
-            if (entry is File file)
-            {
-                OpenFile openFile = new OpenFile(file);
-                for (uint i = 1; i < uint.MaxValue; i++)
-                {
-                    if (!_openFiles.ContainsKey(i))
-                    {
-                        fi.FileDescriptor = i;
-                        _openFiles.Add(i, openFile);
-                        return 0;
-                    }
-                }
-                return ENFILE;
-            }
-            else
-            {
-                return EISDIR;
-            }
         }
 
         public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
@@ -343,6 +320,12 @@ namespace Mounter
             }
         }
 
+        public override int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        {
+            fi.Flags |= O_CREAT | O_WRONLY | O_TRUNC;
+            return Open(path, fi);
+        }
+
         public override int RmDir(ReadOnlySpan<byte> path)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
@@ -369,6 +352,54 @@ namespace Mounter
             {
                 return ENOTDIR;
             }
+        }
+
+        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        {
+            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (entry == null)
+            {
+                if ((fi.Flags & O_CREAT) != 0)
+                {
+                    File newFile = parent.AddFile(name, Array.Empty<byte>());
+                    fi.FileDescriptor = FindFreeFileDescriptor(newFile);
+                    return 0;
+                }
+                else
+                {
+                    return ENOENT;
+                }
+            }
+            if (entry is File file)
+            {
+                if ((fi.Flags & O_TRUNC) != 0)
+                {
+                    file.Truncate(0);
+                }
+                fi.FileDescriptor = FindFreeFileDescriptor(file);
+                return 0;
+            }
+            else
+            {
+                return EISDIR;
+            }
+        }
+
+        private ulong FindFreeFileDescriptor(File file)
+        {
+            for (uint i = 1; i < uint.MaxValue; i++)
+            {
+                if (!_openFiles.ContainsKey(i))
+                {
+                    _openFiles[i] = new OpenFile(file);
+                    return i;
+                }
+            }
+            return ulong.MaxValue;
         }
 
         public override int Unlink(ReadOnlySpan<byte> path)

@@ -45,7 +45,11 @@ namespace Tmds.Fuse
             _fi = fi;
         }
 
-        public int Flags => _fi->flags;
+        public int Flags
+        {
+            get => _fi->flags;
+            set => _fi->flags = value;
+        }
 
         public ulong FileDescriptor
         {
