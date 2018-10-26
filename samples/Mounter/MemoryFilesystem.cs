@@ -54,7 +54,7 @@ namespace Mounter
 
             public int Size => _content.Length;
 
-            public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer)
+            public int Read(ulong offset, Span<byte> buffer)
             {
                 if (offset > (ulong)_content.Length)
                 {
@@ -64,6 +64,38 @@ namespace Mounter
                 int length = (int)Math.Min(_content.Length - intOffset, buffer.Length);
                 _content.AsSpan().Slice(intOffset, length).CopyTo(buffer);
                 return length;
+            }
+
+            internal int Truncate(ulong length)
+            {
+                if (length > int.MaxValue)
+                {
+                    return EFBIG;
+                }
+
+                Array.Resize(ref _content, (int)length);
+
+                return 0;
+            }
+
+            internal int Write(ulong offset, ReadOnlySpan<byte> buffer)
+            {
+                // Check if our file system supports this size
+                ulong newLength = offset + (ulong)buffer.Length;
+                if (newLength > int.MaxValue || offset > int.MaxValue)
+                {
+                    return EFBIG;
+                }
+
+                // Make the file larger
+                if (newLength > (ulong)_content.Length)
+                {
+                    Truncate(newLength);
+                }
+
+                // Copy the data
+                buffer.CopyTo(_content.AsSpan().Slice((int)offset));
+                return buffer.Length;
             }
         }
 
@@ -155,8 +187,14 @@ namespace Mounter
                 _file = file;
             }
 
-            public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer)
-                => _file.Read(path, offset, buffer);
+            public int Read(ulong offset, Span<byte> buffer)
+                => _file.Read(offset, buffer);
+
+            public void Truncate(ulong offset)
+                => _file.Truncate(offset);
+
+            public int Write(ulong offset, ReadOnlySpan<byte> buffer)
+                => _file.Write(offset, buffer);
         }
 
         // TODO: inform fuse the implementation is not thread-safe.
@@ -207,7 +245,7 @@ namespace Mounter
             if (entry is File file)
             {
                 OpenFile openFile = new OpenFile(file);
-                for (uint i = 0; i < uint.MaxValue; i++)
+                for (uint i = 1; i < uint.MaxValue; i++)
                 {
                     if (!_openFiles.ContainsKey(i))
                     {
@@ -225,14 +263,41 @@ namespace Mounter
         }
 
         public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
-        {
-            return _openFiles[fi.FileDescriptor].Read(path, offset, buffer);
-        }
+            => _openFiles[fi.FileDescriptor].Read(offset, buffer);
+
+        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi)
+            => _openFiles[fi.FileDescriptor].Write(offset, buffer);
 
         public override int Release(ReadOnlySpan<byte> path, FileInfo fi)
         {
             _openFiles.Remove(fi.FileDescriptor);
             return 0;
+        }
+
+        int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
+        {
+            if (fi.FileDescriptor == 0)
+            {
+                _openFiles[fi.FileDescriptor].Truncate(length);
+                return 0;
+            }
+            else
+            {
+                IEntry entry = _root.FindEntry(path);
+                if (entry == null)
+                {
+                    return ENOENT;
+                }
+                if (entry is File file)
+                {
+                    file.Truncate(length);
+                    return 0;
+                }
+                else
+                {
+                    return EISDIR;
+                }
+            }
         }
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)

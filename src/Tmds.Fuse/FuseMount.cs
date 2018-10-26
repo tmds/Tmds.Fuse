@@ -62,9 +62,9 @@ namespace Tmds.Fuse
             _create = Create;
         }
 
-        private unsafe int Truncate(path* path, ulong off, fuse_file_info* fi)
+        private unsafe int Truncate(path* path, ulong length, fuse_file_info* fi)
         {
-            return _fileSystem.Truncate(ToSpan(path), off, ToFileInfo(fi));
+            return _fileSystem.Truncate(ToSpan(path), length, ToFileInfo(fi));
         }
 
         private unsafe int Create(path* path, int mode, fuse_file_info* fi)
