@@ -52,6 +52,8 @@ namespace Tmds.Fuse
     unsafe delegate int rmdir_Delegate(path* path);
     unsafe delegate int mkdir_Delegate(path* path, int mode);
     unsafe delegate int create_Delegate(path* path, int mode, fuse_file_info* fi);
+    unsafe delegate int chmod_Delegate(path* path, int mode, fuse_file_info* fi);
+    unsafe delegate int link_Delegate(path* fromPath, path* toPath);
 
     /**
     * The file system operations:
@@ -146,7 +148,7 @@ namespace Tmds.Fuse
 
         /** Create a hard link to a file */
         //int (*link) (const char *, const char *);
-        IntPtr link;
+        public IntPtr link;
 
         /** Change the permission bits of a file
         *
@@ -154,7 +156,7 @@ namespace Tmds.Fuse
         * may also be NULL if the file is open.
         */
         //int (*chmod) (const char *, mode_t, struct fuse_file_info *fi);
-        IntPtr chmod;
+        public IntPtr chmod;
 
         /** Change the owner and group of a file
         *

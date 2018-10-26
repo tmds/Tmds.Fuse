@@ -41,15 +41,19 @@ namespace Mounter
         }
 
         interface IEntry
-        { }
+        {
+            int Mode { get; set; }
+        }
 
         class File : IEntry
         {
             private byte[] _content;
+            public int Mode { get; set; }
 
-            public File(byte[] content)
+            public File(byte[] content, int mode)
             {
                 _content = content;
+                Mode = mode;
             }
 
             public int Size => _content.Length;
@@ -102,7 +106,13 @@ namespace Mounter
 
         class Directory : IEntry
         {
+            public int Mode { get; set; }
             public Dictionary<EntryName, IEntry> Entries { get; } = new Dictionary<EntryName, IEntry>();
+
+            public Directory(int mode)
+            {
+                Mode = mode;
+            }
 
             public IEntry FindEntry(ReadOnlySpan<byte> path)
             {
@@ -139,28 +149,31 @@ namespace Mounter
                 }
             }
 
-            public Directory AddDirectory(string name)
-                => AddDirectory(Encoding.UTF8.GetBytes(name));
+            public Directory AddDirectory(string name, int mode)
+                => AddDirectory(Encoding.UTF8.GetBytes(name), mode);
 
-            public Directory AddDirectory(ReadOnlySpan<byte> name)
+            public Directory AddDirectory(ReadOnlySpan<byte> name, int mode)
             {
-                var directory = new Directory();
+                var directory = new Directory(mode);
                 Entries.Add(name.ToArray(), directory);
                 return directory;
             }
 
-            public File AddFile(string name, string content)
-                => AddFile(Encoding.UTF8.GetBytes(name), Encoding.UTF8.GetBytes(content));
+            public File AddFile(string name, string content, int mode)
+                => AddFile(Encoding.UTF8.GetBytes(name), Encoding.UTF8.GetBytes(content), mode);
 
-            public File AddFile(ReadOnlySpan<byte> name, byte[] content)
+            public File AddFile(ReadOnlySpan<byte> name, byte[] content, int mode)
             {
-                var file = new File(content);
+                var file = new File(content, mode);
                 Entries.Add(name, file);
                 return file;
             }
 
             public void Remove(ReadOnlySpan<byte> name)
                 => Entries.Remove(name);
+
+            public void AddEntry(ReadOnlySpan<byte> name, IEntry entry)
+                => Entries.Add(name, entry);
         }
 
         class OpenFile
@@ -169,6 +182,12 @@ namespace Mounter
 
             public OpenFile(File file)
                 => _file = file;
+
+            public int Mode
+            {
+                get => _file.Mode;
+                set => _file.Mode = value;
+            }
 
             public int Read(ulong offset, Span<byte> buffer)
                 => _file.Read(offset, buffer);
@@ -183,14 +202,16 @@ namespace Mounter
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
+            const int defaultFileMode = 0b100_100_100;  // r--r--r--
+            const int defaultDirMode  = 0b111_101_101; // rwxr-xr-x
             // Add some stuff.
-            _root.AddFile("file1", "Content of file1");
-            Directory sampleDir = _root.AddDirectory("empty_dir");
-            Directory dirWithFiles = _root.AddDirectory("dir_with_files");
-            dirWithFiles.AddFile("file2", "Content of file2");
-            dirWithFiles.AddFile("file3", "Content of file3");
-            Directory nestedDir = dirWithFiles.AddDirectory("nested_dir");
-            nestedDir.AddFile("file4", "Content of file4");
+            _root.AddFile("file1", "Content of file1", defaultFileMode);
+            Directory sampleDir = _root.AddDirectory("empty_dir", defaultDirMode);
+            Directory dirWithFiles = _root.AddDirectory("dir_with_files", defaultDirMode);
+            dirWithFiles.AddFile("file2", "Content of file2", defaultFileMode);
+            dirWithFiles.AddFile("file3", "Content of file3", defaultFileMode);
+            Directory nestedDir = dirWithFiles.AddDirectory("nested_dir", defaultDirMode);
+            nestedDir.AddFile("file4", "Content of file4", defaultFileMode);
         }
 
 
@@ -202,7 +223,7 @@ namespace Mounter
                 case null:
                     return ENOENT;
                 case Directory directory:
-                    stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
+                    stat.Mode = S_IFDIR | entry.Mode;
                     int dirCount = 0;
                     foreach (var child in directory.Entries.Values)
                     {
@@ -211,7 +232,7 @@ namespace Mounter
                     stat.NLink = 2 + dirCount; // TODO: do we really need this??
                     break;
                 case File f:
-                    stat.Mode = S_IFREG | 0b101_100_100; // r--r--r--
+                    stat.Mode = S_IFREG | entry.Mode;
                     stat.NLink = 1;
                     stat.Size = f.Size;
                     break;
@@ -254,6 +275,25 @@ namespace Mounter
             }
         }
 
+        public override int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        {
+            if (!fi.IsNull && fi.FileDescriptor != 0)
+            {
+                _openFiles[fi.FileDescriptor].Mode = mode;
+                return 0;
+            }
+            else
+            {
+                IEntry entry = _root.FindEntry(path);
+                if (entry == null)
+                {
+                    return ENOENT;
+                }
+                entry.Mode = mode;
+                return 0;
+            }
+        }
+
         public override int MkDir(ReadOnlySpan<byte> path, int mode)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
@@ -266,7 +306,7 @@ namespace Mounter
                 return EEXIST;
             }
 
-            parent.AddDirectory(name);
+            parent.AddDirectory(name, mode);
 
             return 0;
         }
@@ -296,8 +336,19 @@ namespace Mounter
 
         public override int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
         {
-            fi.Flags |= O_CREAT | O_WRONLY | O_TRUNC;
-            return Open(path, fi);
+            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (entry != null)
+            {
+                return EEXIST; // TODO, is this correct?
+            }
+
+            File newFile = parent.AddFile(name, Array.Empty<byte>(), mode);
+            fi.FileDescriptor = FindFreeFileDescriptor(newFile);
+            return 0;
         }
 
         public override int RmDir(ReadOnlySpan<byte> path)
@@ -338,16 +389,7 @@ namespace Mounter
 
             if (entry == null)
             {
-                if ((fi.Flags & O_CREAT) != 0)
-                {
-                    File newFile = parent.AddFile(name, Array.Empty<byte>());
-                    fi.FileDescriptor = FindFreeFileDescriptor(newFile);
-                    return 0;
-                }
-                else
-                {
-                    return ENOENT;
-                }
+                return ENOENT;
             }
             if (entry is File file)
             {
@@ -400,6 +442,26 @@ namespace Mounter
             }
         }
 
+        public override int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
+        {
+            IEntry from = _root.FindEntry(fromPath);
+            if (from == null)
+            {
+                return ENOENT;
+            }
+            (Directory parent, bool parentIsNotDir, IEntry to) = FindParentAndEntry(toPath, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (to != null)
+            {
+                return EEXIST;
+            }
+            parent.AddEntry(name, from); // TODO: do we need to count hard links??
+            return 0;
+        }
+
         private (Directory parent, bool parentIsNotDir, IEntry entry) FindParentAndEntry(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> name)
         {
             SplitPathIntoParentAndName(path, out ReadOnlySpan<byte> parentDir, out name);
@@ -426,7 +488,7 @@ namespace Mounter
             name = path.Slice(separatorPos + 1);
         }
 
-        private readonly Directory _root = new Directory();
+        private readonly Directory _root = new Directory(0b111_101_101);
         private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
     }
 }

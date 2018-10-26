@@ -40,6 +40,8 @@ namespace Tmds.Fuse
     {
         private readonly fuse_file_info* _fi;
 
+        public bool IsNull => _fi == null;
+
         internal FileInfo(fuse_file_info* fi)
         {
             _fi = fi;
@@ -139,14 +141,22 @@ namespace Tmds.Fuse
         int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi);
         int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi);
         int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi);
+        int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi);
+        int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
     {
+        public virtual int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
         public virtual int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
             => FuseConstants.ENOSYS;
 
         public virtual int MkDir(ReadOnlySpan<byte> path, int mode)
@@ -167,13 +177,13 @@ namespace Tmds.Fuse
         public virtual int RmDir(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fileInfo)
+        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Unlink(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fileInfo)
+        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fi)
             => FuseConstants.ENOSYS;
     }
 
