@@ -66,7 +66,7 @@ namespace Mounter
                 return length;
             }
 
-            internal int Truncate(ulong length)
+            public int Truncate(ulong length)
             {
                 if (length > int.MaxValue)
                 {
@@ -78,7 +78,7 @@ namespace Mounter
                 return 0;
             }
 
-            internal int Write(ulong offset, ReadOnlySpan<byte> buffer)
+            public int Write(ulong offset, ReadOnlySpan<byte> buffer)
             {
                 // Check if our file system supports this size
                 ulong newLength = offset + (ulong)buffer.Length;
@@ -160,19 +160,22 @@ namespace Mounter
                 }
             }
 
-            internal Directory AddDirectory(string name)
+            public Directory AddDirectory(string name)
+                => AddDirectory(Encoding.UTF8.GetBytes(name));
+
+            public Directory AddDirectory(ReadOnlySpan<byte> name)
             {
                 var directory = new Directory();
-                Entries.Add(Encoding.UTF8.GetBytes(name), directory);
+                Entries.Add(name.ToArray(), directory);
                 return directory;
             }
 
-            internal void AddFile(string name, string content)
+            public void AddFile(string name, string content)
             {
                 Entries.Add(Encoding.UTF8.GetBytes(name), new File(Encoding.UTF8.GetBytes(content)));
             }
 
-            internal void Remove(ReadOnlySpan<byte> name)
+            public void Remove(ReadOnlySpan<byte> name)
             {
                 Entries.Remove(name);
             }
@@ -274,7 +277,7 @@ namespace Mounter
             return 0;
         }
 
-        int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
+        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
         {
             if (fi.FileDescriptor == 0)
             {
@@ -298,6 +301,23 @@ namespace Mounter
                     return EISDIR;
                 }
             }
+        }
+
+        public override int MkDir(ReadOnlySpan<byte> path, int mode)
+        {
+            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (entry != null)
+            {
+                return EEXIST;
+            }
+
+            parent.AddDirectory(name);
+
+            return 0;
         }
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
