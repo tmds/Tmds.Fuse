@@ -24,6 +24,14 @@ namespace Tmds.Fuse
         private readonly readdir_Delegate _readdir;
         private readonly open_Delegate _open;
         private readonly read_Delegate _read;
+        private readonly release_Delegate _release;
+        private readonly write_Delegate _write;
+        private readonly unlink_Delegate _unlink;
+        private readonly truncate_Delegate _truncate;
+        private readonly rmdir_Delegate _rmdir;
+        private readonly mkdir_Delegate _mkdir;
+        private readonly create_Delegate _create;
+
         private unsafe class ManagedFiller
         {
             public readonly fuse_fill_dir* Filler;
@@ -45,6 +53,44 @@ namespace Tmds.Fuse
             _read = Read;
             _open = Open;
             _readdir = Readdir;
+            _release = Release;
+            _write = Write;
+            _unlink = Unlink;
+            _truncate = Truncate;
+            _rmdir = Rmdir;
+            _mkdir = Mkdir;
+            _create = Create;
+        }
+
+        private unsafe int Truncate(path* path, ulong off, fuse_file_info* fi)
+        {
+            return _fileSystem.Truncate(ToSpan(path), off, ToFileInfo(fi));
+        }
+
+        private unsafe int Create(path* path, int mode, fuse_file_info* fi)
+        {
+            return _fileSystem.Create(ToSpan(path), mode, ToFileInfo(fi));
+        }
+
+        private unsafe int Mkdir(path* path, int mode)
+        {
+            return _fileSystem.MkDir(ToSpan(path), mode);
+        }
+
+        private unsafe int Rmdir(path* path)
+        {
+            return _fileSystem.RmDir(ToSpan(path));
+        }
+
+        private unsafe int Unlink(path* path)
+        {
+            return _fileSystem.Unlink(ToSpan(path));
+        }
+
+        private unsafe int Write(path* path, void* buffer, UIntPtr size, ulong off, fuse_file_info* fi)
+        {
+            // TODO: handle size > int.MaxValue
+            return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ToFileInfo(fi));
         }
 
         private unsafe int Getattr(path* path, stat* stat, fuse_file_info* fi)
@@ -83,6 +129,11 @@ namespace Tmds.Fuse
             return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ToFileInfo(fi));
         }
 
+        private unsafe int Release(path* path, fuse_file_info* fi)
+        {
+            return _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
+        }
+
         private unsafe FileInfo ToFileInfo(fuse_file_info* fi) => new FileInfo(fi);
 
         private unsafe Stat ToStat(stat* stat) => new Stat(stat);
@@ -106,6 +157,7 @@ namespace Tmds.Fuse
             ops.readdir = Marshal.GetFunctionPointerForDelegate(_readdir);
             ops.open = Marshal.GetFunctionPointerForDelegate(_open);
             ops.read = Marshal.GetFunctionPointerForDelegate(_read);
+            ops.release = Marshal.GetFunctionPointerForDelegate(_release);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);

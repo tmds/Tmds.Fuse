@@ -7,17 +7,17 @@ using static Tmds.Fuse.FuseConstants;
 
 namespace Mounter
 {
-    class MemoryFileSystem : IFuseFileSystem
+    class MemoryFileSystem : FuseFileSystemBase
     {
         struct EntryName : IEquatable<EntryName>
         {
             private byte[] _name;
-            public EntryName(byte[] name) => _name = name;
+
+            public EntryName(byte[] name)
+                => _name = name;
 
             public bool Equals(EntryName other)
-            {
-                return new Span<byte>(_name).SequenceEqual(other._name);
-            }
+                => new Span<byte>(_name).SequenceEqual(other._name);
 
             public override bool Equals(object obj)
             {
@@ -34,6 +34,7 @@ namespace Mounter
             public override int GetHashCode() => Hash.GetFNVHashCode(_name);
 
             public static implicit operator EntryName(byte[] name) => new EntryName(name);
+
             public static implicit operator ReadOnlySpan<byte>(EntryName name) => name._name;
         }
 
@@ -51,7 +52,7 @@ namespace Mounter
 
             public int Size => _content.Length;
 
-            internal int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer)
+            public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer)
             {
                 if (offset > (ulong)_content.Length)
                 {
@@ -138,6 +139,19 @@ namespace Mounter
             }
         }
 
+        class OpenFile
+        {
+            private readonly File _file;
+
+            public OpenFile(File file)
+            {
+                _file = file;
+            }
+
+            public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer)
+                => _file.Read(path, offset, buffer);
+        }
+
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
@@ -151,7 +165,7 @@ namespace Mounter
         }
 
 
-        public int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             switch (entry)
@@ -176,7 +190,7 @@ namespace Mounter
             return 0;
         }
 
-        public int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             if (entry == null)
@@ -185,7 +199,17 @@ namespace Mounter
             }
             if (entry is File file)
             {
-                return 0;
+                OpenFile openFile = new OpenFile(file);
+                for (uint i = 0; i < uint.MaxValue; i++)
+                {
+                    if (!_openFiles.ContainsKey(i))
+                    {
+                        fi.FileDescriptor = i;
+                        _openFiles.Add(i, openFile);
+                        return 0;
+                    }
+                }
+                return ENFILE;
             }
             else
             {
@@ -193,24 +217,18 @@ namespace Mounter
             }
         }
 
-        public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
         {
-            IEntry entry = _root.FindEntry(path);
-            if (entry == null)
-            {
-                return ENOENT;
-            }
-            if (entry is File file)
-            {
-                return file.Read(path, offset, buffer);
-            }
-            else
-            {
-                return EISDIR;
-            }
+            return _openFiles[fi.FileDescriptor].Read(path, offset, buffer);
         }
 
-        public int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+        public override int Release(ReadOnlySpan<byte> path, FileInfo fi)
+        {
+            _openFiles.Remove(fi.FileDescriptor);
+            return 0;
+        }
+
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             if (entry == null)
@@ -234,5 +252,6 @@ namespace Mounter
         }
 
         private readonly Directory _root = new Directory();
+        private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
     }
 }
