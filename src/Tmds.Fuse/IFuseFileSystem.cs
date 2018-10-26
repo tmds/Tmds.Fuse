@@ -142,6 +142,7 @@ namespace Tmds.Fuse
         int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi);
         int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi);
         int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi);
+        int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
@@ -153,6 +154,9 @@ namespace Tmds.Fuse
             => FuseConstants.ENOSYS;
 
         public virtual int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
             => FuseConstants.ENOSYS;
 
         public virtual int MkDir(ReadOnlySpan<byte> path, int mode)

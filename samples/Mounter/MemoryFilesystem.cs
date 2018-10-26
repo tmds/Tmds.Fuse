@@ -171,6 +171,9 @@ namespace Mounter
 
             public void Remove(ReadOnlySpan<byte> name)
                 => Entries.Remove(name);
+
+            public void AddEntry(ReadOnlySpan<byte> name, IEntry entry)
+                => Entries.Add(name, entry);
         }
 
         class OpenFile
@@ -437,6 +440,26 @@ namespace Mounter
             {
                 return EISDIR;
             }
+        }
+
+        public override int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
+        {
+            IEntry from = _root.FindEntry(fromPath);
+            if (from == null)
+            {
+                return ENOENT;
+            }
+            (Directory parent, bool parentIsNotDir, IEntry to) = FindParentAndEntry(toPath, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (to != null)
+            {
+                return EEXIST;
+            }
+            parent.AddEntry(name, from); // TODO: do we need to count hard links??
+            return 0;
         }
 
         private (Directory parent, bool parentIsNotDir, IEntry entry) FindParentAndEntry(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> name)

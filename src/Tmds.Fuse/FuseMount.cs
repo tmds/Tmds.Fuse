@@ -32,6 +32,7 @@ namespace Tmds.Fuse
         private readonly mkdir_Delegate _mkdir;
         private readonly create_Delegate _create;
         private readonly chmod_Delegate _chmod;
+        private readonly link_Delegate _link;
 
         private unsafe class ManagedFiller
         {
@@ -62,6 +63,12 @@ namespace Tmds.Fuse
             _mkdir = Mkdir;
             _create = Create;
             _chmod = Chmod;
+            _link = Link;
+        }
+
+        private unsafe int Link(path* fromPath, path* toPath)
+        {
+            return _fileSystem.Link(ToSpan(fromPath), ToSpan(toPath));
         }
 
         private unsafe int Chmod(path* path, int mode, fuse_file_info* fi)
@@ -173,6 +180,7 @@ namespace Tmds.Fuse
             ops.mkdir = Marshal.GetFunctionPointerForDelegate(_mkdir);
             ops.create = Marshal.GetFunctionPointerForDelegate(_create);
             ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
+            ops.link = Marshal.GetFunctionPointerForDelegate(_link);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);
