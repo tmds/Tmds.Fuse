@@ -13,6 +13,9 @@ namespace Tmds.Fuse
     struct fuse_file_info
     {
         public int flags;
+        public uint bitfields;
+        public uint padding;
+        public ulong fh;
     }
 
     unsafe struct fuse_args
@@ -42,6 +45,13 @@ namespace Tmds.Fuse
     unsafe delegate int readdir_Delegate(path* path, void* buf, fuse_fill_dir* filler, ulong offset, fuse_file_info* fi, int flags);
     unsafe delegate int open_Delegate(path* path, fuse_file_info* fi);
     unsafe delegate int read_Delegate(path* path, void* buffer, size_t size, ulong off, fuse_file_info* fi);
+    unsafe delegate int release_Delegate(path* path, fuse_file_info* fi);
+    unsafe delegate int write_Delegate(path* path, void* buffer, size_t size, ulong off, fuse_file_info* fi);
+    unsafe delegate int unlink_Delegate(path* path);
+    unsafe delegate int truncate_Delegate(path* path, ulong off, fuse_file_info* fi);
+    unsafe delegate int rmdir_Delegate(path* path);
+    unsafe delegate int mkdir_Delegate(path* path, int mode);
+    unsafe delegate int create_Delegate(path* path, int mode, fuse_file_info* fi);
 
     /**
     * The file system operations:
@@ -108,15 +118,15 @@ namespace Tmds.Fuse
         * correct directory type bits use  mode|S_IFDIR
         * */
         //int (*mkdir) (const char *, mode_t);
-        IntPtr mkdir;
+        public IntPtr mkdir;
 
         /** Remove a file */
         //int (*unlink) (const char *);
-        IntPtr unlink;
+        public IntPtr unlink;
 
         /** Remove a directory */
         //int (*rmdir) (const char *);
-        IntPtr rmdir;
+        public IntPtr rmdir;
 
         /** Create a symbolic link */
         //int (*symlink) (const char *, const char *);
@@ -166,7 +176,7 @@ namespace Tmds.Fuse
         * expected to reset the setuid and setgid bits.
         */
         //int (*truncate) (const char *, off_t, struct fuse_file_info *fi);
-        IntPtr truncate;
+        public IntPtr truncate;
 
         /** Open a file
         *
@@ -243,7 +253,7 @@ namespace Tmds.Fuse
         */
         //int (*write) (const char *, const char *, size_t, off_t,
         // struct fuse_file_info *);
-        IntPtr write;
+        public IntPtr write;
 
         /** Get file system statistics
         *
@@ -289,7 +299,7 @@ namespace Tmds.Fuse
         * file.  The return value of release is ignored.
         */
         //int (*release) (const char *, struct fuse_file_info *);
-        IntPtr release;
+        public IntPtr release;
 
         /** Synchronize file contents
         *
@@ -401,7 +411,7 @@ namespace Tmds.Fuse
         * will be called instead.
         */
         //int (*create) (const char *, mode_t, struct fuse_file_info *);
-        IntPtr create;
+        public IntPtr create;
 
         /**
         * Perform POSIX file locking operation

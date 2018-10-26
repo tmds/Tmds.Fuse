@@ -45,9 +45,12 @@ namespace Tmds.Fuse
             _fi = fi;
         }
 
-        public int Flags
+        public int Flags => _fi->flags;
+
+        public ulong FileDescriptor
         {
-            get => _fi->flags;
+            get => _fi->fh;
+            set => _fi->fh = value;
         }
     }
 
@@ -123,8 +126,50 @@ namespace Tmds.Fuse
     {
         int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi);
         int Open(ReadOnlySpan<byte> path, FileInfo fi);
+        int Release(ReadOnlySpan<byte> path, FileInfo fi);
         int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi);
         int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi);
+        int RmDir(ReadOnlySpan<byte> path);
+        int Unlink(ReadOnlySpan<byte> path);
+        int MkDir(ReadOnlySpan<byte> path, int mode);
+        int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi);
+        int Truncate(ReadOnlySpan<byte> path, ulong offset, FileInfo fileInfo);
+        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fileInfo);
+    }
+
+    public class FuseFileSystemBase : IFuseFileSystem
+    {
+        public virtual int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int MkDir(ReadOnlySpan<byte> path, int mode)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Open(ReadOnlySpan<byte> path, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Release(ReadOnlySpan<byte> path, FileInfo fi)
+            => FuseConstants.ENOSYS;
+
+        public virtual int RmDir(ReadOnlySpan<byte> path)
+            => FuseConstants.ENOSYS;
+
+        public virtual int Truncate(ReadOnlySpan<byte> path, ulong offset, FileInfo fileInfo)
+            => FuseConstants.ENOSYS;
+        public virtual int Unlink(ReadOnlySpan<byte> path)
+            => FuseConstants.ENOSYS;
+
+        public int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fileInfo)
+            => FuseConstants.ENOSYS;
     }
 
     public enum ReadDirFlags { }

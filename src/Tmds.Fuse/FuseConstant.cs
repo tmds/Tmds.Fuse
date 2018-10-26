@@ -36,6 +36,7 @@ namespace Tmds.Fuse
         public const int EPIPE = -32;
         public const int EDOM = -33;
         public const int ERANGE = -34;
+        public const int ENOSYS = -38;
         public const int S_IFREG = 0x8000;
         public const int S_IFDIR = 0x4000;
         public const int O_ACCMODE = 3;

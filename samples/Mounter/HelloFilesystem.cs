@@ -5,13 +5,13 @@ using static Tmds.Fuse.FuseConstants;
 
 namespace Mounter
 {
-    class HelloFileSystem : IFuseFileSystem
+    class HelloFileSystem : FuseFileSystemBase
     {
         private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/");
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
-        public int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
         {
             if (path.SequenceEqual(_rootPath))
             {
@@ -32,7 +32,7 @@ namespace Mounter
             }
         }
 
-        public int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
@@ -47,7 +47,7 @@ namespace Mounter
             return 0;
         }
 
-        public int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
         {
             if (offset > (ulong)_helloFileContent.Length)
             {
@@ -59,7 +59,7 @@ namespace Mounter
             return length;
         }
 
-        public int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
         {
             if (!path.SequenceEqual(_rootPath))
             {
