@@ -48,7 +48,7 @@ namespace Tmds.Fuse
     unsafe delegate int release_Delegate(path* path, fuse_file_info* fi);
     unsafe delegate int write_Delegate(path* path, void* buffer, size_t size, ulong off, fuse_file_info* fi);
     unsafe delegate int unlink_Delegate(path* path);
-    unsafe delegate int truncate_Delegate(path* path, ulong off, fuse_file_info* fi);
+    unsafe delegate int truncate_Delegate(path* path, ulong length, fuse_file_info* fi);
     unsafe delegate int rmdir_Delegate(path* path);
     unsafe delegate int mkdir_Delegate(path* path, int mode);
     unsafe delegate int create_Delegate(path* path, int mode, fuse_file_info* fi);

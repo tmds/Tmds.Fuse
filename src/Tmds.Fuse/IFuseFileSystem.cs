@@ -45,7 +45,11 @@ namespace Tmds.Fuse
             _fi = fi;
         }
 
-        public int Flags => _fi->flags;
+        public int Flags
+        {
+            get => _fi->flags;
+            set => _fi->flags = value;
+        }
 
         public ulong FileDescriptor
         {
@@ -133,8 +137,8 @@ namespace Tmds.Fuse
         int Unlink(ReadOnlySpan<byte> path);
         int MkDir(ReadOnlySpan<byte> path, int mode);
         int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi);
-        int Truncate(ReadOnlySpan<byte> path, ulong offset, FileInfo fileInfo);
-        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fileInfo);
+        int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi);
+        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
@@ -163,12 +167,13 @@ namespace Tmds.Fuse
         public virtual int RmDir(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int Truncate(ReadOnlySpan<byte> path, ulong offset, FileInfo fileInfo)
+        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fileInfo)
             => FuseConstants.ENOSYS;
+
         public virtual int Unlink(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fileInfo)
+        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fileInfo)
             => FuseConstants.ENOSYS;
     }
 

@@ -62,9 +62,9 @@ namespace Tmds.Fuse
             _create = Create;
         }
 
-        private unsafe int Truncate(path* path, ulong off, fuse_file_info* fi)
+        private unsafe int Truncate(path* path, ulong length, fuse_file_info* fi)
         {
-            return _fileSystem.Truncate(ToSpan(path), off, ToFileInfo(fi));
+            return _fileSystem.Truncate(ToSpan(path), length, ToFileInfo(fi));
         }
 
         private unsafe int Create(path* path, int mode, fuse_file_info* fi)
@@ -158,6 +158,12 @@ namespace Tmds.Fuse
             ops.open = Marshal.GetFunctionPointerForDelegate(_open);
             ops.read = Marshal.GetFunctionPointerForDelegate(_read);
             ops.release = Marshal.GetFunctionPointerForDelegate(_release);
+            ops.write = Marshal.GetFunctionPointerForDelegate(_write);
+            ops.unlink = Marshal.GetFunctionPointerForDelegate(_unlink);
+            ops.truncate = Marshal.GetFunctionPointerForDelegate(_truncate);
+            ops.rmdir = Marshal.GetFunctionPointerForDelegate(_rmdir);
+            ops.mkdir = Marshal.GetFunctionPointerForDelegate(_mkdir);
+            ops.create = Marshal.GetFunctionPointerForDelegate(_create);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);

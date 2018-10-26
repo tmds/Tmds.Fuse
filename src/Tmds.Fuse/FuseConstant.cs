@@ -37,9 +37,14 @@ namespace Tmds.Fuse
         public const int EDOM = -33;
         public const int ERANGE = -34;
         public const int ENOSYS = -38;
+        public const int ENOTEMPTY = -39;
         public const int S_IFREG = 0x8000;
         public const int S_IFDIR = 0x4000;
         public const int O_ACCMODE = 3;
         public const int O_RDONLY = 0;
+        public const int O_WRONLY = 1;
+        public const int O_RDRW = 2;
+        public const int O_CREAT = 0x40;
+        public const int O_TRUNC = 0x200;
     }
 }
