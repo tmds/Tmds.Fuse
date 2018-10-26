@@ -35,6 +35,8 @@ namespace Mounter
 
             public static implicit operator EntryName(byte[] name) => new EntryName(name);
 
+            public static implicit operator EntryName(ReadOnlySpan<byte> name) => new EntryName(name.ToArray());
+
             public static implicit operator ReadOnlySpan<byte>(EntryName name) => name._name;
         }
 
@@ -136,6 +138,11 @@ namespace Mounter
             internal void AddFile(string name, string content)
             {
                 Entries.Add(Encoding.UTF8.GetBytes(name), new File(Encoding.UTF8.GetBytes(content)));
+            }
+
+            internal void Remove(ReadOnlySpan<byte> name)
+            {
+                Entries.Remove(name);
             }
         }
 
@@ -249,6 +256,83 @@ namespace Mounter
             {
                 return ENOTDIR;
             }
+        }
+
+        public override int RmDir(ReadOnlySpan<byte> path)
+        {
+            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (entry == null)
+            {
+                return ENOENT;
+            }
+
+            if (entry is Directory dir)
+            {
+                if (dir.Entries.Count != 0)
+                {
+                    return ENOTEMPTY;
+                }
+
+                parent.Remove(name);
+                return 0;
+            }
+            else
+            {
+                return ENOTDIR;
+            }
+        }
+
+        public override int Unlink(ReadOnlySpan<byte> path)
+        {
+            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            if (parent == null)
+            {
+                return parentIsNotDir ? ENOTDIR : ENOENT;
+            }
+            if (entry == null)
+            {
+                return ENOENT;
+            }
+
+            if (entry is File file)
+            {
+                parent.Remove(name);
+                return 0;
+            }
+            else
+            {
+                return EISDIR;
+            }
+        }
+
+        private (Directory parent, bool parentIsNotDir, IEntry entry) FindParentAndEntry(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> name)
+        {
+            SplitPathIntoParentAndName(path, out ReadOnlySpan<byte> parentDir, out name);
+            IEntry entry = _root.FindEntry(parentDir);
+            Directory parent = entry as Directory;
+            bool parentIsNotDir;
+            if (parent != null)
+            {
+                parentIsNotDir = false;
+                entry = parent.FindEntry(name);
+            }
+            else
+            {
+                parentIsNotDir = true;
+                entry = null;
+            }
+            return (parent, parentIsNotDir, entry);
+        }
+
+        private void SplitPathIntoParentAndName(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> parent, out ReadOnlySpan<byte> name)
+        {
+            int separatorPos = path.LastIndexOf((byte)'/');
+            parent = path.Slice(0, separatorPos);
+            name = path.Slice(separatorPos + 1);
         }
 
         private readonly Directory _root = new Directory();

@@ -158,6 +158,12 @@ namespace Tmds.Fuse
             ops.open = Marshal.GetFunctionPointerForDelegate(_open);
             ops.read = Marshal.GetFunctionPointerForDelegate(_read);
             ops.release = Marshal.GetFunctionPointerForDelegate(_release);
+            ops.write = Marshal.GetFunctionPointerForDelegate(_write);
+            ops.unlink = Marshal.GetFunctionPointerForDelegate(_unlink);
+            ops.truncate = Marshal.GetFunctionPointerForDelegate(_truncate);
+            ops.rmdir = Marshal.GetFunctionPointerForDelegate(_rmdir);
+            ops.mkdir = Marshal.GetFunctionPointerForDelegate(_mkdir);
+            ops.create = Marshal.GetFunctionPointerForDelegate(_create);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);
