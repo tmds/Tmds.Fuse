@@ -131,7 +131,8 @@ namespace Tmds.Fuse
 
         private unsafe int Release(path* path, fuse_file_info* fi)
         {
-            return _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
+            _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
+            return 0;
         }
 
         private unsafe FileInfo ToFileInfo(fuse_file_info* fi) => new FileInfo(fi);
