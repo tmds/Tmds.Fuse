@@ -3,9 +3,9 @@ using System.Text;
 using Tmds.Fuse;
 using static Tmds.Fuse.FuseConstants;
 
-namespace Hello
+namespace Mounter
 {
-    class MyFileSystem : IFuseFileSystem
+    class HelloFileSystem : IFuseFileSystem
     {
         private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/");
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");

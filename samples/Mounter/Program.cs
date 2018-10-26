@@ -2,13 +2,30 @@
 using System.IO;
 using Tmds.Fuse;
 
-namespace Hello
+namespace Mounter
 {
     class Program
     {
         static void Main(string[] args)
         {
-            const string mountPoint = "/tmp/hellofs";
+            string type = args.Length > 0 ? args[0] : "hello";
+
+            IFuseFileSystem fileSystem;
+            if (type == "hello")
+            {
+                fileSystem = new HelloFileSystem();
+            }
+            else if (type == "memory")
+            {
+                fileSystem = new MemoryFileSystem();
+            }
+            else
+            {
+                System.Console.WriteLine("Unknown file system type");
+                return;
+            }
+
+            string mountPoint = $"/tmp/{type}fs";
             System.Console.WriteLine($"Mounting filesystem at {mountPoint}");
 
             Fuse.TryUnmount(mountPoint);
@@ -18,7 +35,7 @@ namespace Hello
 
             try
             {
-                Fuse.Mount(mountPoint, new MyFileSystem());
+                Fuse.Mount(mountPoint, fileSystem);
             }
             catch (FuseException fe)
             {

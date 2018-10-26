@@ -117,7 +117,7 @@ namespace Tmds.Fuse
             rv = LibFuse.fuse_loop(fuse);
             if (rv != 0)
             {
-                ThrowException(nameof(LibFuse.fuse_mount), rv);
+                ThrowException(nameof(LibFuse.fuse_loop), rv);
             }
         }
 

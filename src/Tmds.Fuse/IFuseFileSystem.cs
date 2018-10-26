@@ -84,6 +84,35 @@ namespace Tmds.Fuse
             }
         }
 
+        public void AddEntry(ReadOnlySpan<byte> name)
+        {
+            if (name[name.Length - 1] == 0)
+            {
+                if (name.Length > (FUSE_NAME_MAX + 1))
+                {
+                    ThrowNameTooLongException();
+                }
+                fixed (byte* bytesPtr = name)
+                {
+                    _fillDelegate(_buffer, bytesPtr, null, 0, 0);
+                }
+            }
+            else
+            {
+                if (name.Length > FUSE_NAME_MAX)
+                {
+                    ThrowNameTooLongException();
+                }
+                Span<byte> buffer = stackalloc byte[name.Length + 1];
+                name.CopyTo(buffer);
+                buffer[name.Length] = 0;
+                fixed (byte* bytesPtr = buffer)
+                {
+                    _fillDelegate(_buffer, bytesPtr, null, 0, 0);
+                }
+            }
+        }
+
         private void ThrowNameTooLongException()
         {
             throw new ArgumentException($"The name is too long. Names may be up to {FUSE_NAME_MAX} bytes.", "name");
