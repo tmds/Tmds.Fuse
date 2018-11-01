@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using static Tmds.Fuse.PlatformConstants;
 
 namespace Tmds.Fuse
 {
@@ -33,6 +34,7 @@ namespace Tmds.Fuse
         private readonly create_Delegate _create;
         private readonly chmod_Delegate _chmod;
         private readonly link_Delegate _link;
+        private readonly utimes_Delegate _utimens;
 
         private unsafe class ManagedFiller
         {
@@ -64,6 +66,14 @@ namespace Tmds.Fuse
             _create = Create;
             _chmod = Chmod;
             _link = Link;
+            _utimens = Utimens;
+        }
+
+        private unsafe int Utimens(path* path, timespec* tv, fuse_file_info* fi)
+        {
+            TimeSpec atime = new TimeSpec(tv);
+            TimeSpec mtime = new TimeSpec((timespec*)((byte*)tv + TimespecSizeOf));
+            return _fileSystem.UpdateTimestamps(ToSpan(path), atime, mtime, ToFileInfo(fi));
         }
 
         private unsafe int Link(path* fromPath, path* toPath)
@@ -181,6 +191,7 @@ namespace Tmds.Fuse
             ops.create = Marshal.GetFunctionPointerForDelegate(_create);
             ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
             ops.link = Marshal.GetFunctionPointerForDelegate(_link);
+            ops.utimens = Marshal.GetFunctionPointerForDelegate(_utimens);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);

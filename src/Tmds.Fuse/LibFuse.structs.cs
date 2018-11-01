@@ -8,6 +8,7 @@ namespace Tmds.Fuse
     struct stat { }
     struct path { }
     struct fuse_fill_dir { }
+    struct timespec {}
     enum fuse_fill_dir_flags { }
 
     struct fuse_file_info
@@ -30,14 +31,23 @@ namespace Tmds.Fuse
         int allocated;
     };
 
-    static class StructStatInfo
+    static class PlatformConstants
     {
-        public static readonly int SizeOf = 144;
-        public static readonly int LongSizeOf = (SizeOf + 7) / 8;
-        public static readonly int OffsetOfStIno = 8;
-        public static readonly int OffsetOfStMode = 24;
-        public static readonly int OffsetOfStSize = 48;
-        public static readonly int OffsetOfNLink = 16;
+        public static readonly int StatSizeOf = 144;
+        public static readonly int StatLongSizeOf = 18;
+        public static readonly int StatOffsetOfStMode = 24;
+        public static readonly int StatOffsetOfStSize = 48;
+        public static readonly int StatOffsetOfNLink = 16;
+        public static readonly int StatOffsetOfStATime = 72;
+        public static readonly int StatOffsetOfStMTime = 88;
+        public static readonly int StatOffsetOfStATimeNsec = 80;
+        public static readonly int StatOffsetOfStMTimeNsec = 96;
+        public static readonly int TimespecSizeOf = 16;
+        public static readonly int TimespecOffsetOfTvSec = 0;
+        public static readonly int TimespecOffsetOfTvNsec = 8;
+        public static readonly int TimeTSizeOf = 8;
+        public static readonly int UTIME_OMIT = 1073741822;
+        public static readonly int UTIME_NOW = 1073741823;
     }
 
     unsafe delegate int fuse_fill_dir_Delegate(void* buf, void* name, stat* stat, ulong off, fuse_fill_dir_flags flags);
@@ -54,6 +64,7 @@ namespace Tmds.Fuse
     unsafe delegate int create_Delegate(path* path, int mode, fuse_file_info* fi);
     unsafe delegate int chmod_Delegate(path* path, int mode, fuse_file_info* fi);
     unsafe delegate int link_Delegate(path* fromPath, path* toPath);
+    unsafe delegate int utimes_Delegate(path* path, timespec* tv, fuse_file_info* fi);
 
     /**
     * The file system operations:
@@ -463,7 +474,7 @@ namespace Tmds.Fuse
         */
         //int (*utimens) (const char *, const struct timespec tv[2],
         // struct fuse_file_info *fi);
-        IntPtr utimens;
+        public IntPtr utimens;
 
         /**
         * Map block index within file to block index within device
