@@ -43,12 +43,16 @@ namespace Mounter
         interface IEntry
         {
             int Mode { get; set; }
+            DateTime ATime { get; set; }
+            DateTime MTime { get; set; }
         }
 
         class File : IEntry
         {
             private byte[] _content;
             public int Mode { get; set; }
+            public DateTime ATime { get; set; }
+            public DateTime MTime { get; set; }
 
             public File(byte[] content, int mode)
             {
@@ -107,6 +111,9 @@ namespace Mounter
         class Directory : IEntry
         {
             public int Mode { get; set; }
+            public DateTime ATime { get; set; }
+            public DateTime MTime { get; set; }
+
             public Dictionary<EntryName, IEntry> Entries { get; } = new Dictionary<EntryName, IEntry>();
 
             public Directory(int mode)
@@ -188,6 +195,7 @@ namespace Mounter
                 get => _file.Mode;
                 set => _file.Mode = value;
             }
+            public IEntry Entry => _file;
 
             public int Read(ulong offset, Span<byte> buffer)
                 => _file.Read(offset, buffer);
@@ -230,11 +238,15 @@ namespace Mounter
                         if (child is Directory) dirCount++;
                     }
                     stat.NLink = 2 + dirCount; // TODO: do we really need this??
+                    stat.ATime = directory.ATime;
+                    stat.MTime = directory.MTime;
                     break;
                 case File f:
                     stat.Mode = S_IFREG | entry.Mode;
                     stat.NLink = 1;
                     stat.Size = f.Size;
+                    stat.ATime = f.ATime;
+                    stat.MTime = f.MTime;
                     break;
             }
             return 0;
@@ -459,6 +471,33 @@ namespace Mounter
                 return EEXIST;
             }
             parent.AddEntry(name, from); // TODO: do we need to count hard links??
+            return 0;
+        }
+
+        public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FileInfo fi)
+        {
+            IEntry entry;
+            if (!fi.IsNull && fi.FileDescriptor != 0)
+            {
+                entry = _openFiles[fi.FileDescriptor].Entry;
+            }
+            else
+            {
+                entry = _root.FindEntry(path);
+            }
+            if (entry == null)
+            {
+                return ENOENT;
+            }
+            DateTime now = atime.IsNow || mtime.IsNow ? DateTime.Now : DateTime.MinValue;
+            if (!atime.IsOmit)
+            {
+                entry.ATime = atime.IsNow ? now : atime.ToDateTime();
+            }
+            if (!mtime.IsOmit)
+            {
+                entry.MTime = mtime.IsNow ? now : mtime.ToDateTime();
+            }
             return 0;
         }
 

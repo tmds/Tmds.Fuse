@@ -1,31 +1,67 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using static Tmds.Fuse.PlatformConstants;
 
 namespace Tmds.Fuse
 {
+    static class MemoryHelper
+    {
+        public static unsafe void WriteSizeOf(int size, void* memory, int offset, long value)
+        {
+            if (size == 4)
+            {
+                Write<int>(memory, offset, (int)value);
+            }
+            else if (size == 8)
+            {
+                Write<long>(memory, offset, value);
+            }
+        }
+
+        public static unsafe long ReadSizeOf(int size, void* memory, int offset)
+        {
+            if (size == 4)
+            {
+                return Read<int>(memory, offset);
+            }
+            else if (size == 8)
+            {
+                return Read<long>(memory, offset);
+            }
+            else
+            {
+                return -1;
+            }
+        }
+
+        public unsafe static void Write<T>(void* memory, int offset, T value) where T : unmanaged
+            => *(T*)((byte*)memory + offset) = value;
+
+        public unsafe static T Read<T>(void* memory, int offset) where T : unmanaged
+            => *(T*)((byte*)memory + offset);
+    }
+
     public unsafe ref struct Stat
     {
-        private readonly Span<byte> _stat;
+        private readonly stat* _stat;
 
         internal Stat(stat* stat)
-        {
-            _stat = new Span<byte>(stat, StructStatInfo.SizeOf);
-        }
+            => _stat = stat;
 
         public int Mode
         {
-            set => MemoryMarshal.Write<int>(_stat.Slice(StructStatInfo.OffsetOfStMode), ref value);
+            set => MemoryHelper.Write<int>(_stat, StatOffsetOfStMode, value);
         }
 
         public int NLink
         {
-            set => MemoryMarshal.Write<int>(_stat.Slice(StructStatInfo.OffsetOfNLink), ref value);
+            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfNLink, new IntPtr(value));
         }
 
         public ulong SizeLong
         {
-            set => MemoryMarshal.Write<ulong>(_stat.Slice(StructStatInfo.OffsetOfStSize), ref value);
+            set => MemoryHelper.Write<ulong>(_stat, StatOffsetOfStSize, value);
         }
 
         public int Size
@@ -33,7 +69,66 @@ namespace Tmds.Fuse
             set => SizeLong = (ulong)value;
         }
 
-        internal void Clear() => _stat.Fill(0);
+        internal void Clear()
+        {
+            for (int i = 0; i < StatSizeOf; i++)
+            {
+                *((byte*)_stat + i) = 0;
+            }
+        }
+
+        public long ATimeSec
+        {
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStATime, value);
+        }
+
+        public long ATimeNSec
+        {
+            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfStATimeNsec, new IntPtr(value));
+        }
+
+        public DateTime ATime
+        {
+            set
+            {
+                long sec, nsec;
+                GetTimeValues(value, out sec, out nsec);
+                ATimeSec = sec;
+                ATimeNSec = nsec;
+            }
+        }
+
+        public long MTimeSec
+        {
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStMTime, value);
+        }
+
+        public long MTimeNSec
+        {
+            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfStMTimeNsec, new IntPtr(value));
+        }
+
+        public DateTime MTime
+        {
+            set
+            {
+                long sec, nsec;
+                GetTimeValues(value, out sec, out nsec);
+                MTimeSec = sec;
+                MTimeNSec = nsec;
+            }
+        }
+
+        private void GetTimeValues(DateTime value, out long sec, out long nsec)
+        {
+            value = value.ToUniversalTime();
+            long ticks = value.Ticks - UnixEpochTicks;
+            sec = ticks / TimeSpan.TicksPerSecond;
+            ticks -= TimeSpan.TicksPerSecond * sec;
+            nsec = ticks * 100;
+        }
+
+        private const long UnixEpochTicks = 621355968000000000;
     }
 
     public unsafe ref struct FileInfo
@@ -58,6 +153,40 @@ namespace Tmds.Fuse
             get => _fi->fh;
             set => _fi->fh = value;
         }
+    }
+
+    public unsafe ref struct TimeSpec
+    {
+        private readonly timespec* _ts;
+
+        internal TimeSpec(timespec* ts)
+            => _ts = ts;
+
+        public long Sec
+        {
+            get => MemoryHelper.ReadSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec);
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec, value);
+        }
+
+        public long NSec
+        {
+            get => MemoryHelper.Read<IntPtr>(_ts, TimespecOffsetOfTvNsec).ToInt64();
+            set => MemoryHelper.Write<IntPtr>(_ts, TimespecOffsetOfTvNsec, new IntPtr(value));
+        }
+
+        public bool IsNow => NSec == UTIME_NOW;
+        public bool IsOmit => NSec == UTIME_OMIT;
+
+        public DateTime ToDateTime()
+        {
+            if (IsNow || IsOmit)
+            {
+                throw new InvalidOperationException("Cannot convert meta value to DateTime");
+            }
+            return new DateTime(UnixEpochTicks + TimeSpan.TicksPerSecond * Sec + NSec / 100, DateTimeKind.Utc);
+        }
+
+        private const long UnixEpochTicks = 621355968000000000;
     }
 
     public unsafe ref struct DirectoryContent
@@ -143,6 +272,7 @@ namespace Tmds.Fuse
         int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi);
         int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi);
         int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
+        int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FileInfo fi);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
@@ -181,6 +311,9 @@ namespace Tmds.Fuse
             => FuseConstants.ENOSYS;
 
         public virtual int Unlink(ReadOnlySpan<byte> path)
+            => FuseConstants.ENOSYS;
+
+        public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FileInfo fi)
