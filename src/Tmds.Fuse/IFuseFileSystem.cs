@@ -7,7 +7,7 @@ namespace Tmds.Fuse
 {
     static class MemoryHelper
     {
-        public static unsafe void WriteSizeOf(void* memory, int offset, int size, long value)
+        public static unsafe void WriteSizeOf(int size, void* memory, int offset, long value)
         {
             if (size == 4)
             {
@@ -19,7 +19,7 @@ namespace Tmds.Fuse
             }
         }
 
-        public static unsafe long ReadSizeOf(void* memory, int offset, int size)
+        public static unsafe long ReadSizeOf(int size, void* memory, int offset)
         {
             if (size == 4)
             {
@@ -79,7 +79,7 @@ namespace Tmds.Fuse
 
         public long ATimeSec
         {
-            set => MemoryHelper.WriteSizeOf(_stat, StatOffsetOfStATime, TimeTSizeOf, value);
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStATime, value);
         }
 
         public long ATimeNSec
@@ -100,7 +100,7 @@ namespace Tmds.Fuse
 
         public long MTimeSec
         {
-            set => MemoryHelper.WriteSizeOf(_stat, StatOffsetOfStMTime, TimeTSizeOf, value);
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStMTime, value);
         }
 
         public long MTimeNSec
@@ -164,8 +164,8 @@ namespace Tmds.Fuse
 
         public long Sec
         {
-            get => MemoryHelper.ReadSizeOf(_ts, TimespecOffsetOfTvSec, TimeTSizeOf);
-            set => MemoryHelper.WriteSizeOf(_ts, TimespecOffsetOfTvSec, TimeTSizeOf, value);
+            get => MemoryHelper.ReadSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec);
+            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec, value);
         }
 
         public long NSec
@@ -174,7 +174,7 @@ namespace Tmds.Fuse
             set => MemoryHelper.Write<IntPtr>(_ts, TimespecOffsetOfTvNsec, new IntPtr(value));
         }
 
-        public bool IsNow => NSec == UTIME_NOW; // TODO: Does fuse already handle this in libfuse/kernel???
+        public bool IsNow => NSec == UTIME_NOW;
         public bool IsOmit => NSec == UTIME_OMIT;
 
         public DateTime ToDateTime()
