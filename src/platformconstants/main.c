@@ -2,6 +2,22 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <time.h>
+#include <string.h>
+
+#define FUSE_USE_VERSION 31
+#include <fuse3/fuse.h>
+
+
+struct FileInfo
+{
+    int flags;
+    int bitfields;
+};
+
+int GetBitFieldMask(struct fuse_file_info* fi)
+{
+    return ((struct FileInfo*)fi)->bitfields;
+}
 
 int main()
 {
@@ -38,5 +54,11 @@ int main()
     printf("TimeTSizeOf = %d\n", sizeof(time_t));
     printf("UTIME_OMIT = %d\n", UTIME_OMIT); // less or equal int32.max
     printf("UTIME_NOW = %d\n", UTIME_NOW); // less or equal int32.max
+
+    struct fuse_file_info fi;
+    memset(&fi, 0, sizeof(fi));
+    fi.direct_io = 1;
+    printf("FileInfoDirectIoFieldMask = %d\n", GetBitFieldMask(&fi));
+    fi.direct_io = 0;
     return 0;
 }

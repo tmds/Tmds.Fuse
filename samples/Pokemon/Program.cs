@@ -5,13 +5,26 @@ using static Tmds.Fuse.FuseConstants;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text;
+using System.Collections.Generic;
+using System.Net;
 
 namespace Pokemon
 {
     class PokemonFileSystem : FuseFileSystemBase // TODO: IDisposable
     {
+        private class OpenFile
+        {
+            public OpenFile(byte[] data)
+                => Data = data;
+
+            public byte[] Data { get; }
+        }
+
         private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/"); // TODO: add to FuseConstants
         private readonly HttpClient _httpClient;
+        private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
+        private ulong _nextFd;
+
         public PokemonFileSystem()
         {
             _httpClient = new HttpClient()
@@ -60,26 +73,52 @@ namespace Pokemon
 
         public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi) // TODO: rename to FuseFileInfo
         {
-            try
+            byte[] data = _openFiles[fi.FileDescriptor].Data;
+            if (offset > (ulong)data.Length)
             {
-                string name = Encoding.UTF8.GetString(path.Slice(1));
-                byte[] data = GetAsBytes(name);
-                if (offset > (ulong)data.Length)
-                {
-                    return 0;
-                }
-                int intOffset = (int)offset;
-                int length = (int)Math.Min(data.Length - intOffset, buffer.Length);
-                data.AsSpan().Slice(intOffset, length).CopyTo(buffer);
-                return length;
+                return 0;
             }
-            catch
+            int intOffset = (int)offset;
+            int length = (int)Math.Min(data.Length - intOffset, buffer.Length);
+            data.AsSpan().Slice(intOffset, length).CopyTo(buffer);
+            return length;
+        }
+
+        public override void Release(ReadOnlySpan<byte> path, FileInfo fi)
+        {
+            _openFiles.Remove(fi.FileDescriptor);
+        }
+
+        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        {
+            string name = Encoding.UTF8.GetString(path.Slice(1)) + "/";
+            byte[] data = GetAsBytes(name);
+            if (data == null)
             {
-                return EIO;
+                return ENOENT;
+            }
+
+            ulong fd = FindFreeFd();
+            fi.FileDescriptor = fd;
+            fi.DirectIO = true; // GetAttr doesn't return the actual size.
+            _openFiles.Add(fd, new OpenFile(data));
+
+            return 0;
+        }
+
+        private ulong FindFreeFd()
+        {
+            while (true)
+            {
+                ulong fd = unchecked(_nextFd++);
+                if (!_openFiles.ContainsKey(fd))
+                {
+                    return fd;
+                }
             }
         }
 
-        public JObject GetAsJson(string path)
+        private JObject GetAsJson(string path)
         {
             var response = GetAsResponseMessage(path);
             var stream = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
@@ -91,11 +130,23 @@ namespace Pokemon
             }
         }
 
+        private byte[] GetAsBytes(string path)
+        {
+            using (HttpResponseMessage response = GetAsResponseMessage(path))
+            {
+                if (response.StatusCode == HttpStatusCode.OK)
+                {
+                    return response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
         private HttpResponseMessage GetAsResponseMessage(string path)
             => _httpClient.GetAsync(path).GetAwaiter().GetResult();
-
-        public byte[] GetAsBytes(string path)
-            => GetAsResponseMessage(path).Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
     }
 
     class Program

@@ -153,6 +153,22 @@ namespace Tmds.Fuse
             get => _fi->fh;
             set => _fi->fh = value;
         }
+
+        public bool DirectIO
+        {
+            get => (_fi->bitfields & FileInfoDirectIoFieldMask) != 0;
+            set
+            {
+                if (value)
+                {
+                    _fi->bitfields |= FileInfoDirectIoFieldMask;
+                }
+                else
+                {
+                    _fi->bitfields &= ~FileInfoDirectIoFieldMask;
+                }
+            }
+        }
     }
 
     public unsafe ref struct TimeSpec
