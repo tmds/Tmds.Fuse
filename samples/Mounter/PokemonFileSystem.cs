@@ -56,20 +56,14 @@ namespace Mounter
             {
                 return ENOENT;
             }
-            try
+
+            content.AddEntry(".");
+            content.AddEntry("..");
+            foreach (var pokemon in GetAsJson("")["results"])
             {
-                content.AddEntry(".");
-                content.AddEntry("..");
-                foreach (var pokemon in GetAsJson("")["results"])
-                {
-                    content.AddEntry((string)pokemon["name"]);
-                }
-                return 0;
+                content.AddEntry((string)pokemon["name"]);
             }
-            catch (Exception e) // TODO: move up
-            {
-                return EIO;
-            }
+            return 0;
         }
 
         public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi) // TODO: rename to FuseFileInfo
