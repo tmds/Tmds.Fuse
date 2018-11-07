@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net.Http;
 using Tmds.Fuse;
 using static Tmds.Fuse.FuseConstants;
@@ -8,7 +8,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Net;
 
-namespace Pokemon
+namespace Mounter
 {
     class PokemonFileSystem : FuseFileSystemBase
     {
@@ -149,13 +149,5 @@ namespace Pokemon
 
         private HttpResponseMessage GetAsResponseMessage(string path)
             => _httpClient.GetAsync(path).GetAwaiter().GetResult();
-    }
-
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            Fuse.Mount("/tmp/pokemon", new PokemonFileSystem());
-        }
     }
 }
