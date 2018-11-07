@@ -7,8 +7,10 @@ namespace Tmds.Fuse
     {
         public static void Mount(string mountPoint, IFuseFileSystem fileSystem)
         {
-            FuseMount mount = new FuseMount(mountPoint, fileSystem);
-            mount.Mount();
+            using (FuseMount mount = new FuseMount(mountPoint, fileSystem))
+            {
+                mount.Mount();
+            }
         }
 
         public static void TryUnmount(string mountPoint)

@@ -273,7 +273,7 @@ namespace Tmds.Fuse
         }
     }
 
-    public interface IFuseFileSystem
+    public interface IFuseFileSystem : IDisposable
     {
         int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi);
         int Open(ReadOnlySpan<byte> path, FileInfo fi);
@@ -298,6 +298,9 @@ namespace Tmds.Fuse
 
         public virtual int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
             => FuseConstants.ENOSYS;
+
+        public virtual void Dispose()
+        { }
 
         public virtual int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
             => FuseConstants.ENOSYS;

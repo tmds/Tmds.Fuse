@@ -10,7 +10,7 @@ using System.Net;
 
 namespace Pokemon
 {
-    class PokemonFileSystem : FuseFileSystemBase // TODO: IDisposable
+    class PokemonFileSystem : FuseFileSystemBase
     {
         private class OpenFile
         {
@@ -32,6 +32,8 @@ namespace Pokemon
                 BaseAddress = new Uri("https://pokeapi.co/api/v2/pokemon/")
             };
         }
+
+        public override void Dispose() => _httpClient.Dispose();
 
         public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
         {

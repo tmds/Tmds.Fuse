@@ -17,7 +17,7 @@ namespace Tmds.Fuse
             System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
 
-    class FuseMount
+    class FuseMount : IDisposable
     {
         private readonly string _mountPoint;
         private readonly IFuseFileSystem _fileSystem;
@@ -210,6 +210,11 @@ namespace Tmds.Fuse
         private void ThrowException(string operation, int returnValue)
         {
             throw new FuseException($"Failed to {operation}, the function returned {returnValue}.");
+        }
+
+        public void Dispose()
+        {
+            _fileSystem.Dispose();
         }
     }
 }
