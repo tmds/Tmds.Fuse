@@ -7,13 +7,12 @@ namespace Mounter
 {
     class HelloFileSystem : FuseFileSystemBase
     {
-        private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/");
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
-        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
         {
-            if (path.SequenceEqual(_rootPath))
+            if (path.SequenceEqual(RootPath))
             {
                 stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
                 stat.NLink = 2; // 2 + nr of subdirectories
@@ -32,7 +31,7 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
@@ -47,7 +46,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi)
         {
             if (offset > (ulong)_helloFileContent.Length)
             {
@@ -59,9 +58,9 @@ namespace Mounter
             return length;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
         {
-            if (!path.SequenceEqual(_rootPath))
+            if (!path.SequenceEqual(RootPath))
             {
                 return ENOENT;
             }

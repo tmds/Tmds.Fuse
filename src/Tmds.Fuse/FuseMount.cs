@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using static Tmds.Fuse.PlatformConstants;
+using static Tmds.Fuse.FuseConstants;
 
 namespace Tmds.Fuse
 {
@@ -17,7 +18,7 @@ namespace Tmds.Fuse
             System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
 
-    class FuseMount
+    class FuseMount : IDisposable
     {
         private readonly string _mountPoint;
         private readonly IFuseFileSystem _fileSystem;
@@ -71,95 +72,192 @@ namespace Tmds.Fuse
 
         private unsafe int Utimens(path* path, timespec* tv, fuse_file_info* fi)
         {
-            TimeSpec atime = new TimeSpec(tv);
-            TimeSpec mtime = new TimeSpec((timespec*)((byte*)tv + TimespecSizeOf));
-            return _fileSystem.UpdateTimestamps(ToSpan(path), atime, mtime, ToFileInfo(fi));
+            try
+            {
+                TimeSpec atime = new TimeSpec(tv);
+                TimeSpec mtime = new TimeSpec((timespec*)((byte*)tv + TimespecSizeOf));
+                return _fileSystem.UpdateTimestamps(ToSpan(path), atime, mtime, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Link(path* fromPath, path* toPath)
         {
-            return _fileSystem.Link(ToSpan(fromPath), ToSpan(toPath));
+            try
+            {
+                return _fileSystem.Link(ToSpan(fromPath), ToSpan(toPath));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Chmod(path* path, int mode, fuse_file_info* fi)
         {
-            return _fileSystem.ChMod(ToSpan(path), mode, ToFileInfo(fi));
+            try
+            {
+                return _fileSystem.ChMod(ToSpan(path), mode, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Truncate(path* path, ulong length, fuse_file_info* fi)
         {
-            return _fileSystem.Truncate(ToSpan(path), length, ToFileInfo(fi));
+            try
+            {
+                return _fileSystem.Truncate(ToSpan(path), length, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Create(path* path, int mode, fuse_file_info* fi)
         {
-            return _fileSystem.Create(ToSpan(path), mode, ToFileInfo(fi));
+            try
+            {
+                return _fileSystem.Create(ToSpan(path), mode, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Mkdir(path* path, int mode)
         {
-            return _fileSystem.MkDir(ToSpan(path), mode);
+            try
+            {
+                return _fileSystem.MkDir(ToSpan(path), mode);
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Rmdir(path* path)
         {
-            return _fileSystem.RmDir(ToSpan(path));
+            try
+            {
+                return _fileSystem.RmDir(ToSpan(path));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Unlink(path* path)
         {
-            return _fileSystem.Unlink(ToSpan(path));
+            try
+            {
+                return _fileSystem.Unlink(ToSpan(path));}
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Write(path* path, void* buffer, UIntPtr size, ulong off, fuse_file_info* fi)
         {
-            // TODO: handle size > int.MaxValue
-            return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ToFileInfo(fi));
+            try
+            {
+                // TODO: handle size > int.MaxValue
+                return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Getattr(path* path, stat* stat, fuse_file_info* fi)
         {
-            Stat s = ToStat(stat);
-            s.Clear();
-            return _fileSystem.GetAttr(ToSpan(path), s, ToFileInfo(fi));
+            try
+            {
+                Stat s = ToStat(stat);
+                s.Clear();
+                return _fileSystem.GetAttr(ToSpan(path), s, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Readdir(path* path, void* buf, fuse_fill_dir* filler, ulong offset, fuse_file_info* fi, int flags)
         {
-            // try to reuse the previous delegate
-            fuse_fill_dir_Delegate fillDelegate;
-            ManagedFiller previousFiller = _previousFiller;
-            if (previousFiller != null && previousFiller.Filler == filler)
+            try
             {
-                fillDelegate = previousFiller.Delegate;
-            }
-            else
-            {
-                fillDelegate = Marshal.GetDelegateForFunctionPointer<fuse_fill_dir_Delegate>(new IntPtr(filler));
-                _previousFiller = new ManagedFiller(filler, fillDelegate);
-            }
+                // try to reuse the previous delegate
+                fuse_fill_dir_Delegate fillDelegate;
+                ManagedFiller previousFiller = _previousFiller;
+                if (previousFiller != null && previousFiller.Filler == filler)
+                {
+                    fillDelegate = previousFiller.Delegate;
+                }
+                else
+                {
+                    fillDelegate = Marshal.GetDelegateForFunctionPointer<fuse_fill_dir_Delegate>(new IntPtr(filler));
+                    _previousFiller = new ManagedFiller(filler, fillDelegate);
+                }
 
-            return _fileSystem.ReadDir(ToSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ToFileInfo(fi));
+                return _fileSystem.ReadDir(ToSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Open(path* path, fuse_file_info* fi)
         {
-            return _fileSystem.Open(ToSpan(path), ToFileInfo(fi));
+            try
+            {
+                return _fileSystem.Open(ToSpan(path), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Read(path* path, void* buffer, UIntPtr size, ulong off, fuse_file_info* fi)
         {
-            // TODO: handle size > int.MaxValue
-            return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ToFileInfo(fi));
+            try
+            {
+                // TODO: handle size > int.MaxValue
+                return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Release(path* path, fuse_file_info* fi)
         {
-            _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
-            return 0;
+            try
+            {
+                _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
+                return 0;
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
-        private unsafe FileInfo ToFileInfo(fuse_file_info* fi) => new FileInfo(fi);
+        private unsafe FuseFileInfo ToFileInfo(fuse_file_info* fi) => new FuseFileInfo(fi);
 
         private unsafe Stat ToStat(stat* stat) => new Stat(stat);
 
@@ -210,6 +308,11 @@ namespace Tmds.Fuse
         private void ThrowException(string operation, int returnValue)
         {
             throw new FuseException($"Failed to {operation}, the function returned {returnValue}.");
+        }
+
+        public void Dispose()
+        {
+            _fileSystem.Dispose();
         }
     }
 }

@@ -42,6 +42,7 @@ namespace Mounter
 
         interface IEntry
         {
+            int NLink { get; set; }
             int Mode { get; set; }
             DateTime ATime { get; set; }
             DateTime MTime { get; set; }
@@ -53,6 +54,7 @@ namespace Mounter
             public int Mode { get; set; }
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
+            public int NLink { get; set; }
 
             public File(byte[] content, int mode)
             {
@@ -113,11 +115,13 @@ namespace Mounter
             public int Mode { get; set; }
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
+            public int NLink { get; set; }
 
             public Dictionary<EntryName, IEntry> Entries { get; } = new Dictionary<EntryName, IEntry>();
 
             public Directory(int mode)
             {
+                NLink = 1; // link to self
                 Mode = mode;
             }
 
@@ -162,7 +166,8 @@ namespace Mounter
             public Directory AddDirectory(ReadOnlySpan<byte> name, int mode)
             {
                 var directory = new Directory(mode);
-                Entries.Add(name.ToArray(), directory);
+                AddEntry(name, directory);
+                NLink++; // subdirs link to their parent
                 return directory;
             }
 
@@ -172,15 +177,27 @@ namespace Mounter
             public File AddFile(ReadOnlySpan<byte> name, byte[] content, int mode)
             {
                 var file = new File(content, mode);
-                Entries.Add(name, file);
+                AddEntry(name, file);
                 return file;
             }
 
             public void Remove(ReadOnlySpan<byte> name)
-                => Entries.Remove(name);
+            {
+                if (Entries.Remove(name, out IEntry entry))
+                {
+                    entry.NLink--;
+                    if (entry is Directory)
+                    {
+                        NLink--; // subdirs link to their parent
+                    }
+                }
+            }
 
             public void AddEntry(ReadOnlySpan<byte> name, IEntry entry)
-                => Entries.Add(name, entry);
+            {
+                Entries.Add(name, entry);
+                entry.NLink++;
+            }
         }
 
         class OpenFile
@@ -222,46 +239,39 @@ namespace Mounter
             nestedDir.AddFile("file4", "Content of file4", defaultFileMode);
         }
 
-
-        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
+            if (entry == null)
+            {
+                return ENOENT;
+            }
+            stat.NLink = entry.NLink;
+            stat.ATime = entry.ATime;
+            stat.MTime = entry.MTime;
             switch (entry)
             {
-                case null:
-                    return ENOENT;
                 case Directory directory:
                     stat.Mode = S_IFDIR | entry.Mode;
-                    int dirCount = 0;
-                    foreach (var child in directory.Entries.Values)
-                    {
-                        if (child is Directory) dirCount++;
-                    }
-                    stat.NLink = 2 + dirCount; // TODO: do we really need this??
-                    stat.ATime = directory.ATime;
-                    stat.MTime = directory.MTime;
                     break;
                 case File f:
                     stat.Mode = S_IFREG | entry.Mode;
-                    stat.NLink = 1;
                     stat.Size = f.Size;
-                    stat.ATime = f.ATime;
-                    stat.MTime = f.MTime;
                     break;
             }
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi)
             => _openFiles[fi.FileDescriptor].Read(offset, buffer);
 
-        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi)
+        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfo fi)
             => _openFiles[fi.FileDescriptor].Write(offset, buffer);
 
-        public override void Release(ReadOnlySpan<byte> path, FileInfo fi)
+        public override void Release(ReadOnlySpan<byte> path, FuseFileInfo fi)
             => _openFiles.Remove(fi.FileDescriptor);
 
-        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
+        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfo fi)
         {
             if (fi.FileDescriptor != 0)
             {
@@ -287,7 +297,7 @@ namespace Mounter
             }
         }
 
-        public override int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        public override int ChMod(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
         {
             if (!fi.IsNull && fi.FileDescriptor != 0)
             {
@@ -323,7 +333,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             if (entry == null)
@@ -346,7 +356,7 @@ namespace Mounter
             }
         }
 
-        public override int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        public override int Create(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -391,7 +401,7 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -470,11 +480,11 @@ namespace Mounter
             {
                 return EEXIST;
             }
-            parent.AddEntry(name, from); // TODO: do we need to count hard links??
+            parent.AddEntry(name, from);
             return 0;
         }
 
-        public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FileInfo fi)
+        public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FuseFileInfo fi)
         {
             IEntry entry;
             if (!fi.IsNull && fi.FileDescriptor != 0)

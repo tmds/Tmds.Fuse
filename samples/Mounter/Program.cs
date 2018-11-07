@@ -19,6 +19,10 @@ namespace Mounter
             {
                 fileSystem = new MemoryFileSystem();
             }
+            else if (type == "pokemon")
+            {
+                fileSystem = new PokemonFileSystem();
+            }
             else
             {
                 System.Console.WriteLine("Unknown file system type");

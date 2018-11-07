@@ -14,7 +14,7 @@ namespace Tmds.Fuse
     struct fuse_file_info
     {
         public int flags;
-        public uint bitfields;
+        public int bitfields;
         public uint padding;
         public ulong fh;
     }
@@ -48,6 +48,7 @@ namespace Tmds.Fuse
         public static readonly int TimeTSizeOf = 8;
         public static readonly int UTIME_OMIT = 1073741822;
         public static readonly int UTIME_NOW = 1073741823;
+        public static readonly int FileInfoDirectIoFieldMask = 2;
     }
 
     unsafe delegate int fuse_fill_dir_Delegate(void* buf, void* name, stat* stat, ulong off, fuse_fill_dir_flags flags);
