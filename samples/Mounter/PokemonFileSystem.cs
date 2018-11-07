@@ -39,7 +39,7 @@ namespace Mounter
             if (path.SequenceEqual(RootPath))
             {
                 stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
-                stat.NLink = 2; // 2 + nr of subdirectories
+                stat.NLink = 2;
                 return 0;
             }
             else
