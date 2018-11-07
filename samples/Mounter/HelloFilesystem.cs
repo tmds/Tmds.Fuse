@@ -7,13 +7,12 @@ namespace Mounter
 {
     class HelloFileSystem : FuseFileSystemBase
     {
-        private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/");
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
         public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
         {
-            if (path.SequenceEqual(_rootPath))
+            if (path.SequenceEqual(RootPath))
             {
                 stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
                 stat.NLink = 2; // 2 + nr of subdirectories
@@ -61,7 +60,7 @@ namespace Mounter
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
         {
-            if (!path.SequenceEqual(_rootPath))
+            if (!path.SequenceEqual(RootPath))
             {
                 return ENOENT;
             }

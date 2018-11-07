@@ -1,7 +1,11 @@
+using System;
+
 namespace Tmds.Fuse
 {
     public static class FuseConstants
     {
+        private static byte[] _rootPath = new byte[] { (byte)'/' };
+        public static ReadOnlySpan<byte> RootPath => _rootPath;
         public const int EPERM = -1;
         public const int ENOENT = -2;
         public const int ESRCH = -3;

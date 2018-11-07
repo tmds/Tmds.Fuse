@@ -20,7 +20,6 @@ namespace Mounter
             public byte[] Data { get; }
         }
 
-        private static readonly byte[] _rootPath = Encoding.UTF8.GetBytes("/"); // TODO: add to FuseConstants
         private readonly HttpClient _httpClient;
         private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
         private ulong _nextFd;
@@ -37,7 +36,7 @@ namespace Mounter
 
         public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
         {
-            if (path.SequenceEqual(_rootPath))
+            if (path.SequenceEqual(RootPath))
             {
                 stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
                 stat.NLink = 2; // 2 + nr of subdirectories
@@ -53,7 +52,7 @@ namespace Mounter
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
         {
-            if (!path.SequenceEqual(_rootPath))
+            if (!path.SequenceEqual(RootPath))
             {
                 return ENOENT;
             }
