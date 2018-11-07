@@ -223,7 +223,7 @@ namespace Mounter
         }
 
 
-        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             switch (entry)
@@ -252,16 +252,16 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi)
             => _openFiles[fi.FileDescriptor].Read(offset, buffer);
 
-        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FileInfo fi)
+        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfo fi)
             => _openFiles[fi.FileDescriptor].Write(offset, buffer);
 
-        public override void Release(ReadOnlySpan<byte> path, FileInfo fi)
+        public override void Release(ReadOnlySpan<byte> path, FuseFileInfo fi)
             => _openFiles.Remove(fi.FileDescriptor);
 
-        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FileInfo fi)
+        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfo fi)
         {
             if (fi.FileDescriptor != 0)
             {
@@ -287,7 +287,7 @@ namespace Mounter
             }
         }
 
-        public override int ChMod(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        public override int ChMod(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
         {
             if (!fi.IsNull && fi.FileDescriptor != 0)
             {
@@ -323,7 +323,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FileInfo fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
         {
             IEntry entry = _root.FindEntry(path);
             if (entry == null)
@@ -346,7 +346,7 @@ namespace Mounter
             }
         }
 
-        public override int Create(ReadOnlySpan<byte> path, int mode, FileInfo fi)
+        public override int Create(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -391,7 +391,7 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -474,7 +474,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FileInfo fi)
+        public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FuseFileInfo fi)
         {
             IEntry entry;
             if (!fi.IsNull && fi.FileDescriptor != 0)

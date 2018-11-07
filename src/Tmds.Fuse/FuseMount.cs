@@ -257,7 +257,7 @@ namespace Tmds.Fuse
             }
         }
 
-        private unsafe FileInfo ToFileInfo(fuse_file_info* fi) => new FileInfo(fi);
+        private unsafe FuseFileInfo ToFileInfo(fuse_file_info* fi) => new FuseFileInfo(fi);
 
         private unsafe Stat ToStat(stat* stat) => new Stat(stat);
 
