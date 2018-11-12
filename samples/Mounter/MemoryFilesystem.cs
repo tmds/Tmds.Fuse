@@ -242,9 +242,10 @@ namespace Mounter
             }
 
             // This is called when the FileSystem is Disposed
-            // and should cause us to return the memory to the MemoryManager.
             protected void DisposeDirectory()
             {
+                // Do a recursive 'remove' of all entries
+                // causing memory to be returned to the MemoryManager.
                 while (Entries.Count != 0)
                 {
                     (EntryName name, Entry entry) = Entries.First();
