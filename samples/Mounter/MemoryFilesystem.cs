@@ -142,13 +142,10 @@ namespace Mounter
 
         class Directory : Entry
         {
-            private readonly RecyclableMemoryStreamManager _memoryManager;
-
             public Dictionary<EntryName, Entry> Entries { get; } = new Dictionary<EntryName, Entry>();
 
-            public Directory(RecyclableMemoryStreamManager memoryManager, int mode)
+            public Directory(int mode)
             {
-                _memoryManager = memoryManager;
                 Mode = mode;
             }
 
@@ -195,7 +192,7 @@ namespace Mounter
                 Directory directory = null;
                 try
                 {
-                    directory = new Directory(_memoryManager, mode);
+                    directory = new Directory(mode);
                     AddEntry(name, directory);
                     RefCountInc(); // subdirs link to their parent
                     return directory;
@@ -214,7 +211,7 @@ namespace Mounter
                 File file = null;
                 try
                 {
-                    var memoryStream = new RecyclableMemoryStream(_memoryManager);
+                    var memoryStream = new RecyclableMemoryStream(MemoryFileSystem.MemoryManager);
                     memoryStream.Write(content);
                     file = new File(memoryStream, mode);
                     AddEntry(name, file);
@@ -244,6 +241,8 @@ namespace Mounter
                 entry.RefCountInc();
             }
 
+            // This is called when the FileSystem is Disposed
+            // and should cause us to return the memory to the MemoryManager.
             protected void DisposeDirectory()
             {
                 while (Entries.Count != 0)
@@ -260,8 +259,8 @@ namespace Mounter
 
         class RootDirectory : Directory, IDisposable
         {
-            public RootDirectory(RecyclableMemoryStreamManager memoryManager, int mode) :
-                base(memoryManager, mode)
+            public RootDirectory(int mode) :
+                base(mode)
             {}
 
             public void Dispose()
@@ -297,7 +296,7 @@ namespace Mounter
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
-            _root =  new RootDirectory(s_memoryManager, 0b111_101_101);
+            _root =  new RootDirectory(0b111_101_101);
 
             const int defaultFileMode = 0b100_100_100;  // r--r--r--
             const int defaultDirMode  = 0b111_101_101; // rwxr-xr-x
@@ -610,8 +609,7 @@ namespace Mounter
             name = path.Slice(separatorPos + 1);
         }
 
-        // can this one be cleaned up??
-        private readonly RecyclableMemoryStreamManager s_memoryManager = new RecyclableMemoryStreamManager();
+        internal static RecyclableMemoryStreamManager MemoryManager = new RecyclableMemoryStreamManager(); // can this one be cleaned up?
         private readonly RootDirectory _root;
         private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
     }
