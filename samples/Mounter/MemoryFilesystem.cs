@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using Microsoft.IO;
 using Tmds.Fuse;
 using static Tmds.Fuse.FuseConstants;
 
@@ -50,19 +52,19 @@ namespace Mounter
 
         class File : IEntry
         {
-            private byte[] _content;
+            private readonly Stream _content;
             public int Mode { get; set; }
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
             public int NLink { get; set; }
 
-            public File(byte[] content, int mode)
+            public File(Stream content, int mode)
             {
                 _content = content;
                 Mode = mode;
             }
 
-            public int Size => _content.Length;
+            public int Size => (int)_content.Length;
 
             public int Read(ulong offset, Span<byte> buffer)
             {
@@ -70,10 +72,8 @@ namespace Mounter
                 {
                     return 0;
                 }
-                int intOffset = (int)offset;
-                int length = (int)Math.Min(_content.Length - intOffset, buffer.Length);
-                _content.AsSpan().Slice(intOffset, length).CopyTo(buffer);
-                return length;
+                _content.Position = (long)offset;
+                return _content.Read(buffer);
             }
 
             public int Truncate(ulong length)
@@ -84,7 +84,7 @@ namespace Mounter
                     return EINVAL;
                 }
 
-                Array.Resize(ref _content, (int)length);
+                _content.SetLength((long)length);
 
                 return 0;
             }
@@ -98,14 +98,9 @@ namespace Mounter
                     return EFBIG;
                 }
 
-                // Make the file larger
-                if (newLength > (ulong)_content.Length)
-                {
-                    Truncate(newLength);
-                }
-
                 // Copy the data
-                buffer.CopyTo(_content.AsSpan().Slice((int)offset));
+                _content.Position = (long)offset;
+                _content.Write(buffer);
                 return buffer.Length;
             }
         }
@@ -116,11 +111,13 @@ namespace Mounter
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
             public int NLink { get; set; }
+            private readonly RecyclableMemoryStreamManager _memoryManager;
 
             public Dictionary<EntryName, IEntry> Entries { get; } = new Dictionary<EntryName, IEntry>();
 
-            public Directory(int mode)
+            public Directory(RecyclableMemoryStreamManager memoryManager, int mode)
             {
+                _memoryManager = memoryManager;
                 NLink = 1; // link to self
                 Mode = mode;
             }
@@ -165,7 +162,7 @@ namespace Mounter
 
             public Directory AddDirectory(ReadOnlySpan<byte> name, int mode)
             {
-                var directory = new Directory(mode);
+                var directory = new Directory(_memoryManager, mode);
                 AddEntry(name, directory);
                 NLink++; // subdirs link to their parent
                 return directory;
@@ -176,7 +173,9 @@ namespace Mounter
 
             public File AddFile(ReadOnlySpan<byte> name, byte[] content, int mode)
             {
-                var file = new File(content, mode);
+                var memoryStream = new RecyclableMemoryStream(_memoryManager);
+                memoryStream.Write(content);
+                var file = new File(memoryStream, mode);
                 AddEntry(name, file);
                 return file;
             }
@@ -227,6 +226,8 @@ namespace Mounter
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
+            _memoryManager = new RecyclableMemoryStreamManager();
+            _root =  new Directory(_memoryManager, 0b111_101_101);
             const int defaultFileMode = 0b100_100_100;  // r--r--r--
             const int defaultDirMode  = 0b111_101_101; // rwxr-xr-x
             // Add some stuff.
@@ -537,7 +538,8 @@ namespace Mounter
             name = path.Slice(separatorPos + 1);
         }
 
-        private readonly Directory _root = new Directory(0b111_101_101);
+        private readonly RecyclableMemoryStreamManager _memoryManager;
+        private readonly Directory _root;
         private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
     }
 }
