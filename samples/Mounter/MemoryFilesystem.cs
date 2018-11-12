@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
+using Microsoft.IO;
 using Tmds.Fuse;
 using static Tmds.Fuse.FuseConstants;
 
@@ -40,29 +43,58 @@ namespace Mounter
             public static implicit operator ReadOnlySpan<byte>(EntryName name) => name._name;
         }
 
-        interface IEntry
+        class Entry
         {
-            int NLink { get; set; }
-            int Mode { get; set; }
-            DateTime ATime { get; set; }
-            DateTime MTime { get; set; }
-        }
+            private int _refCount;
 
-        class File : IEntry
-        {
-            private byte[] _content;
+            public int RefCount => _refCount;
             public int Mode { get; set; }
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
-            public int NLink { get; set; }
 
-            public File(byte[] content, int mode)
+            public Entry()
+                => _refCount = 1;
+
+            public void RefCountInc()
+            {
+                if (_refCount == 0)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                _refCount++;
+            }
+
+            public void RefCountDec()
+            {
+                if (_refCount == 0)
+                {
+                    throw new InvalidOperationException();
+                }
+
+                _refCount -= 1;
+
+                if (_refCount == 0)
+                {
+                    DisposeEntry();
+                }
+            }
+
+            protected virtual void DisposeEntry()
+            { }
+        }
+
+        class File : Entry
+        {
+            private readonly Stream _content;
+
+            public File(Stream content, int mode)
             {
                 _content = content;
                 Mode = mode;
             }
 
-            public int Size => _content.Length;
+            public int Size => (int)_content.Length;
 
             public int Read(ulong offset, Span<byte> buffer)
             {
@@ -70,10 +102,8 @@ namespace Mounter
                 {
                     return 0;
                 }
-                int intOffset = (int)offset;
-                int length = (int)Math.Min(_content.Length - intOffset, buffer.Length);
-                _content.AsSpan().Slice(intOffset, length).CopyTo(buffer);
-                return length;
+                _content.Position = (long)offset;
+                return _content.Read(buffer);
             }
 
             public int Truncate(ulong length)
@@ -84,7 +114,7 @@ namespace Mounter
                     return EINVAL;
                 }
 
-                Array.Resize(ref _content, (int)length);
+                _content.SetLength((long)length);
 
                 return 0;
             }
@@ -98,34 +128,28 @@ namespace Mounter
                     return EFBIG;
                 }
 
-                // Make the file larger
-                if (newLength > (ulong)_content.Length)
-                {
-                    Truncate(newLength);
-                }
-
                 // Copy the data
-                buffer.CopyTo(_content.AsSpan().Slice((int)offset));
+                _content.Position = (long)offset;
+                _content.Write(buffer);
                 return buffer.Length;
+            }
+
+            protected override void DisposeEntry()
+            {
+                _content.Dispose();
             }
         }
 
-        class Directory : IEntry
+        class Directory : Entry
         {
-            public int Mode { get; set; }
-            public DateTime ATime { get; set; }
-            public DateTime MTime { get; set; }
-            public int NLink { get; set; }
-
-            public Dictionary<EntryName, IEntry> Entries { get; } = new Dictionary<EntryName, IEntry>();
+            public Dictionary<EntryName, Entry> Entries { get; } = new Dictionary<EntryName, Entry>();
 
             public Directory(int mode)
             {
-                NLink = 1; // link to self
                 Mode = mode;
             }
 
-            public IEntry FindEntry(ReadOnlySpan<byte> path)
+            public Entry FindEntry(ReadOnlySpan<byte> path)
             {
                 while (path.Length > 0 && path[0] == (byte)'/')
                 {
@@ -138,7 +162,7 @@ namespace Mounter
                 int endOfName = path.IndexOf((byte)'/');
                 bool directChild = endOfName == -1;
                 ReadOnlySpan<byte> name = directChild ? path : path.Slice(0, endOfName);
-                if (Entries.TryGetValue(name, out IEntry value))
+                if (Entries.TryGetValue(name, out Entry value))
                 {
                     if (directChild)
                     {
@@ -165,10 +189,18 @@ namespace Mounter
 
             public Directory AddDirectory(ReadOnlySpan<byte> name, int mode)
             {
-                var directory = new Directory(mode);
-                AddEntry(name, directory);
-                NLink++; // subdirs link to their parent
-                return directory;
+                Directory directory = null;
+                try
+                {
+                    directory = new Directory(mode);
+                    AddEntry(name, directory);
+                    RefCountInc(); // subdirs link to their parent
+                    return directory;
+                }
+                finally
+                {
+                    directory?.RefCountDec();
+                }
             }
 
             public File AddFile(string name, string content, int mode)
@@ -176,28 +208,64 @@ namespace Mounter
 
             public File AddFile(ReadOnlySpan<byte> name, byte[] content, int mode)
             {
-                var file = new File(content, mode);
-                AddEntry(name, file);
-                return file;
+                File file = null;
+                try
+                {
+                    var memoryStream = new RecyclableMemoryStream(MemoryFileSystem.MemoryManager);
+                    memoryStream.Write(content);
+                    file = new File(memoryStream, mode);
+                    AddEntry(name, file);
+                    return file;
+                }
+                finally
+                {
+                    file?.RefCountDec();
+                }
             }
 
             public void Remove(ReadOnlySpan<byte> name)
             {
-                if (Entries.Remove(name, out IEntry entry))
+                if (Entries.Remove(name, out Entry entry))
                 {
-                    entry.NLink--;
+                    entry.RefCountDec();
                     if (entry is Directory)
                     {
-                        NLink--; // subdirs link to their parent
+                        RefCountDec(); // subdirs link to their parent
                     }
                 }
             }
 
-            public void AddEntry(ReadOnlySpan<byte> name, IEntry entry)
+            public void AddEntry(ReadOnlySpan<byte> name, Entry entry)
             {
                 Entries.Add(name, entry);
-                entry.NLink++;
+                entry.RefCountInc();
             }
+
+            // This is called when the FileSystem is Disposed
+            protected void DisposeDirectory()
+            {
+                // Do a recursive 'remove' of all entries
+                // causing memory to be returned to the MemoryManager.
+                while (Entries.Count != 0)
+                {
+                    (EntryName name, Entry entry) = Entries.First();
+                    if (entry is Directory dir)
+                    {
+                        dir.DisposeDirectory();
+                    }
+                    Remove(name);
+                }
+            }
+        }
+
+        class RootDirectory : Directory, IDisposable
+        {
+            public RootDirectory(int mode) :
+                base(mode)
+            {}
+
+            public void Dispose()
+                => DisposeDirectory();
         }
 
         class OpenFile
@@ -212,7 +280,7 @@ namespace Mounter
                 get => _file.Mode;
                 set => _file.Mode = value;
             }
-            public IEntry Entry => _file;
+            public Entry Entry => _file;
 
             public int Read(ulong offset, Span<byte> buffer)
                 => _file.Read(offset, buffer);
@@ -224,9 +292,13 @@ namespace Mounter
                 => _file.Write(offset, buffer);
         }
 
+        public virtual void Dispose() => _root.Dispose();
+
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
         {
+            _root =  new RootDirectory(0b111_101_101);
+
             const int defaultFileMode = 0b100_100_100;  // r--r--r--
             const int defaultDirMode  = 0b111_101_101; // rwxr-xr-x
             // Add some stuff.
@@ -241,18 +313,19 @@ namespace Mounter
 
         public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
         {
-            IEntry entry = _root.FindEntry(path);
+            Entry entry = _root.FindEntry(path);
             if (entry == null)
             {
                 return ENOENT;
             }
-            stat.NLink = entry.NLink;
             stat.ATime = entry.ATime;
             stat.MTime = entry.MTime;
+            stat.NLink = entry.RefCount;
             switch (entry)
             {
                 case Directory directory:
                     stat.Mode = S_IFDIR | entry.Mode;
+                    stat.NLink++; // add additional link for self ('.')
                     break;
                 case File f:
                     stat.Mode = S_IFREG | entry.Mode;
@@ -280,7 +353,7 @@ namespace Mounter
             }
             else
             {
-                IEntry entry = _root.FindEntry(path);
+                Entry entry = _root.FindEntry(path);
                 if (entry == null)
                 {
                     return ENOENT;
@@ -306,7 +379,7 @@ namespace Mounter
             }
             else
             {
-                IEntry entry = _root.FindEntry(path);
+                Entry entry = _root.FindEntry(path);
                 if (entry == null)
                 {
                     return ENOENT;
@@ -318,7 +391,7 @@ namespace Mounter
 
         public override int MkDir(ReadOnlySpan<byte> path, int mode)
         {
-            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -335,7 +408,7 @@ namespace Mounter
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
         {
-            IEntry entry = _root.FindEntry(path);
+            Entry entry = _root.FindEntry(path);
             if (entry == null)
             {
                 return ENOENT;
@@ -358,7 +431,7 @@ namespace Mounter
 
         public override int Create(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
         {
-            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -375,7 +448,7 @@ namespace Mounter
 
         public override int RmDir(ReadOnlySpan<byte> path)
         {
-            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -403,7 +476,7 @@ namespace Mounter
 
         public override int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
         {
-            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -443,7 +516,7 @@ namespace Mounter
 
         public override int Unlink(ReadOnlySpan<byte> path)
         {
-            (Directory parent, bool parentIsNotDir, IEntry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -466,12 +539,12 @@ namespace Mounter
 
         public override int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
         {
-            IEntry from = _root.FindEntry(fromPath);
+            Entry from = _root.FindEntry(fromPath);
             if (from == null)
             {
                 return ENOENT;
             }
-            (Directory parent, bool parentIsNotDir, IEntry to) = FindParentAndEntry(toPath, out ReadOnlySpan<byte> name);
+            (Directory parent, bool parentIsNotDir, Entry to) = FindParentAndEntry(toPath, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
                 return parentIsNotDir ? ENOTDIR : ENOENT;
@@ -486,7 +559,7 @@ namespace Mounter
 
         public override int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FuseFileInfo fi)
         {
-            IEntry entry;
+            Entry entry;
             if (!fi.IsNull && fi.FileDescriptor != 0)
             {
                 entry = _openFiles[fi.FileDescriptor].Entry;
@@ -511,10 +584,10 @@ namespace Mounter
             return 0;
         }
 
-        private (Directory parent, bool parentIsNotDir, IEntry entry) FindParentAndEntry(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> name)
+        private (Directory parent, bool parentIsNotDir, Entry entry) FindParentAndEntry(ReadOnlySpan<byte> path, out ReadOnlySpan<byte> name)
         {
             SplitPathIntoParentAndName(path, out ReadOnlySpan<byte> parentDir, out name);
-            IEntry entry = _root.FindEntry(parentDir);
+            Entry entry = _root.FindEntry(parentDir);
             Directory parent = entry as Directory;
             bool parentIsNotDir;
             if (parent != null)
@@ -537,7 +610,8 @@ namespace Mounter
             name = path.Slice(separatorPos + 1);
         }
 
-        private readonly Directory _root = new Directory(0b111_101_101);
+        internal static RecyclableMemoryStreamManager MemoryManager = new RecyclableMemoryStreamManager(); // can this one be cleaned up?
+        private readonly RootDirectory _root;
         private readonly Dictionary<ulong, OpenFile> _openFiles = new Dictionary<ulong, OpenFile>();
     }
 }
