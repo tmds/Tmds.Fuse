@@ -57,6 +57,7 @@ namespace Tmds.Fuse
         public int NLink
         {
             set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfNLink, new IntPtr(value));
+            get => MemoryHelper.Read<IntPtr>(_stat, StatOffsetOfNLink).ToInt32();
         }
 
         public ulong SizeLong
