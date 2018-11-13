@@ -7,7 +7,10 @@ namespace Tmds.Fuse
 
     static unsafe class LibFuse
     {
+        public const string LibraryName = "libfuse3.so.3";
         private static readonly IntPtr s_libFuseHandle;
+
+        public static bool IsAvailable => s_libFuseHandle != IntPtr.Zero;
 
         public delegate fuse* fuse_new_Delegate(fuse_args* args, fuse_operations* op, size_t op_size, void* private_data);
         public static readonly fuse_new_Delegate fuse_new;
@@ -23,7 +26,11 @@ namespace Tmds.Fuse
 
         static LibFuse()
         {
-            s_libFuseHandle = dlopen("libfuse3.so.3", 2);
+            s_libFuseHandle = dlopen(LibraryName, 2);
+            if (s_libFuseHandle == IntPtr.Zero)
+            {
+                return;
+            }
 
             fuse_new = CreateDelegate<fuse_new_Delegate>("fuse_new", "FUSE_3.1");
             fuse_loop = CreateDelegate<fuse_loop_Delegate>("fuse_loop");
@@ -34,6 +41,10 @@ namespace Tmds.Fuse
         private static T CreateDelegate<T>(string name, string version = "FUSE_3.0")
         {
             IntPtr functionPtr = dlvsym(s_libFuseHandle, name, version);
+            if (functionPtr == IntPtr.Zero)
+            {
+                throw new FuseException($"Unable to resolve libfuse function {name}:{version}.");
+            }
             return  Marshal.GetDelegateForFunctionPointer<T>(functionPtr);
         }
 
