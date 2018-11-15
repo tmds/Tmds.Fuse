@@ -10,6 +10,12 @@ namespace Mounter
         {
             string type = args.Length > 0 ? args[0] : "hello";
 
+            if (!Fuse.CheckDependencies())
+            {
+                Console.WriteLine(Fuse.InstallationInstructions);
+                return;
+            }
+
             IFuseFileSystem fileSystem;
             if (type == "hello")
             {

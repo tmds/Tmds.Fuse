@@ -271,6 +271,10 @@ namespace Tmds.Fuse
 
         public unsafe void Mount()
         {
+            if (!LibFuse.IsAvailable)
+            {
+                throw new FuseException($"libfuse({LibFuse.LibraryName}) is not available on this system.");
+            }
             // TODO: delete args
             fuse_args args;
             LibFuse.fuse_opt_add_arg(&args, "");

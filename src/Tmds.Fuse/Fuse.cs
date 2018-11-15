@@ -1,15 +1,32 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace Tmds.Fuse
 {
     public static class Fuse
     {
+        internal const string Fusermount = "fusermount3";
+
         public static void Mount(string mountPoint, IFuseFileSystem fileSystem)
         {
             using (FuseMount mount = new FuseMount(mountPoint, fileSystem))
             {
                 mount.Mount();
+            }
+        }
+
+        public static bool CheckDependencies()
+            => LibFuse.IsAvailable && HasFusermount;
+
+        public static string InstallationInstructions
+        {
+            get
+            {
+                string instructions = $"To run this library, libfuse ({LibFuse.LibraryName}) and {Fusermount} need to be installed.";
+                instructions += "\nTo install these dependencies on Fedora run:";
+                instructions += "\n sudo dnf install -y fuse3 fuse3-libs";
+                return instructions;
             }
         }
 
@@ -19,7 +36,7 @@ namespace Tmds.Fuse
             // fusermount runs as root (setuid)
             var psi = new ProcessStartInfo
             {
-                FileName = "fusermount",
+                FileName = Fusermount,
                 Arguments = $"-u {mountPoint}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
@@ -28,6 +45,26 @@ namespace Tmds.Fuse
             {
                 process.WaitForExit();
             }
+        }
+
+        private static bool HasFusermount => HasProgramOnPath(Fusermount);
+
+        private static bool HasProgramOnPath(string program)
+        {
+            string pathEnvVar = Environment.GetEnvironmentVariable("PATH");
+            if (pathEnvVar != null)
+            {
+                var segments = pathEnvVar.Split(new char[] { ':' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var subPath in segments)
+                {
+                    string path = Path.Combine(subPath, program);
+                    if (File.Exists(path))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
     }
 }
