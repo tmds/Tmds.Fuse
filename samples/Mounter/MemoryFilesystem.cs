@@ -292,7 +292,7 @@ namespace Mounter
                 => _file.Write(offset, buffer);
         }
 
-        public virtual void Dispose() => _root.Dispose();
+        public override void Dispose() => _root.Dispose();
 
         // TODO: inform fuse the implementation is not thread-safe.
         public MemoryFileSystem()
@@ -438,7 +438,7 @@ namespace Mounter
             }
             if (entry != null)
             {
-                return EEXIST; // TODO, is this correct?
+                return EEXIST;
             }
 
             File newFile = parent.AddFile(name, Array.Empty<byte>(), mode);
@@ -581,6 +581,12 @@ namespace Mounter
             {
                 entry.MTime = mtime.IsNow ? now : mtime.ToDateTime();
             }
+            return 0;
+        }
+
+        public override int Rename(ReadOnlySpan<byte> path, ReadOnlySpan<byte> newPath, int flags)
+        {
+            System.Console.WriteLine(Encoding.UTF8.GetString(path) + " to " + Encoding.UTF8.GetString(newPath));
             return 0;
         }
 

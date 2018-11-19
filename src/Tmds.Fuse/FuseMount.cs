@@ -35,6 +35,22 @@ namespace Tmds.Fuse
         private readonly chmod_Delegate _chmod;
         private readonly link_Delegate _link;
         private readonly utimes_Delegate _utimens;
+        private readonly readlink_Delegate _readlink;
+        private readonly symlink_delegate _symlink;
+        private readonly rename_delegate _rename;
+        private readonly chown_delegate _chown;
+        private readonly statfs_delegate _statfs;
+        private readonly flush_delegate _flush;
+        private readonly fsync_delegate _fsync;
+        private readonly setxattr_delegate _setxattr;
+        private readonly getxattr_delegate _getxattr;
+        private readonly listxattr_delegate _listxattr;
+        private readonly removeattr_delegate _removexattr;
+        private readonly opendir_delegate _opendir;
+        private readonly releasedir_delegate _releasedir;
+        private readonly fsyncdir_delegate _fsyncdir;
+        private readonly access_delegate _access;
+        private readonly fallocate_delegate _fallocate;
 
         private unsafe class ManagedFiller
         {
@@ -67,6 +83,216 @@ namespace Tmds.Fuse
             _chmod = Chmod;
             _link = Link;
             _utimens = Utimens;
+            _readlink = Readlink;
+            _symlink = Symlink;
+            _rename = Rename;
+            _chown = Chown;
+            _statfs = Statfs;
+            _flush = Flush;
+            _fsync = Fsync;
+            _setxattr = Setxattr;
+            _getxattr = Getxattr;
+            _listxattr = Listxattr;
+            _removexattr = Removexattr;
+            _opendir = Opendir;
+            _releasedir = Releasedir;
+            _fsyncdir = Fsyncdir;
+            _access = Access;
+            _fallocate = Fallocate;
+        }
+
+        private unsafe int Fallocate(path* path, int mode, ulong offset, ulong length, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.FAllocate(ToSpan(path), mode, offset, (long)length, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Access(path* path, uint mode)
+        {
+            try
+            {
+                return _fileSystem.Access(ToSpan(path), mode);
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Fsyncdir(path* path, int datasync, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.FSyncDir(ToSpan(path), datasync != 0, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Releasedir(path* path, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.ReleaseDir(ToSpan(path), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Opendir(path* path, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.OpenDir(ToSpan(path), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Removexattr(path* path, void* name)
+        {
+            try
+            {
+                return _fileSystem.RemoveXAttr(ToSpan(path), ToSpan((path*)name));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Listxattr(path* path, void* buffer, UIntPtr size)
+        {
+            try
+            {
+                return _fileSystem.ListXAttr(ToSpan(path), new Span<byte>(buffer, (int)size));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Getxattr(path* path, void* name, void* buffer, UIntPtr size)
+        {
+            try
+            {
+                return _fileSystem.GetXAttr(ToSpan(path), ToSpan((path*)name), new Span<byte>(buffer, (int)size));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Setxattr(path* path, void* name, void* buffer, UIntPtr size, int flags)
+        {
+            try
+            {
+                return _fileSystem.SetXAttr(ToSpan(path), ToSpan((path*)name), new ReadOnlySpan<byte>(buffer, (int)size), flags);
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Fsync(path* path, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.FSync(ToSpan(path), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Flush(path* path, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.Flush(ToSpan(path), ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Statfs(path* path, statvfs* vfs)
+        {
+            try
+            {
+                Span<StatVFS> span = new Span<StatVFS>(vfs, 1);
+                span.Clear();
+                return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Chown(path* path, uint uid, uint gid, fuse_file_info* fi)
+        {
+            try
+            {
+                return _fileSystem.Chown(ToSpan(path), uid, gid, ToFileInfo(fi));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Rename(path* path, path* path2, int flags)
+        {
+            try
+            {
+                return _fileSystem.Rename(ToSpan(path), ToSpan(path2), flags);
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Symlink(path* path, path* path2)
+        {
+            try
+            {
+                return _fileSystem.SymLink(ToSpan(path2), ToSpan(path));
+            }
+            catch
+            {
+                return EIO;
+            }
+        }
+
+        private unsafe int Readlink(path* path, void* buffer, UIntPtr size)
+        {
+            try
+            {
+                return _fileSystem.ReadLink(ToSpan(path), new Span<byte>(buffer, (int)size));
+            }
+            catch
+            {
+                return EIO;
+            }
         }
 
         private unsafe int Utimens(path* path, timespec* tv, fuse_file_info* fi)
@@ -303,6 +529,22 @@ namespace Tmds.Fuse
             ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
             ops.link = Marshal.GetFunctionPointerForDelegate(_link);
             ops.utimens = Marshal.GetFunctionPointerForDelegate(_utimens);
+            // ops.readlink = Marshal.GetFunctionPointerForDelegate(_readlink);
+            // ops.symlink = Marshal.GetFunctionPointerForDelegate(_symlink);
+            // ops.rename = Marshal.GetFunctionPointerForDelegate(_rename);
+            // ops.chown = Marshal.GetFunctionPointerForDelegate(_chown);
+            // ops.statfs = Marshal.GetFunctionPointerForDelegate(_statfs);
+            // ops.flush = Marshal.GetFunctionPointerForDelegate(_flush);
+            // ops.fsync = Marshal.GetFunctionPointerForDelegate(_fsync);
+            // ops.setxattr = Marshal.GetFunctionPointerForDelegate(_setxattr);
+            // ops.getxattr = Marshal.GetFunctionPointerForDelegate(_getxattr);
+            // ops.listxattr = Marshal.GetFunctionPointerForDelegate(_listxattr);
+            // ops.removexattr = Marshal.GetFunctionPointerForDelegate(_removexattr);
+            // ops.opendir = Marshal.GetFunctionPointerForDelegate(_opendir);
+            // ops.releasedir = Marshal.GetFunctionPointerForDelegate(_releasedir);
+            // ops.fsyncdir = Marshal.GetFunctionPointerForDelegate(_fsyncdir);
+            // ops.access = Marshal.GetFunctionPointerForDelegate(_access);
+            // ops.fallocate = Marshal.GetFunctionPointerForDelegate(_fallocate);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);

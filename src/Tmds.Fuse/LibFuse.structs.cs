@@ -8,10 +8,11 @@ namespace Tmds.Fuse
     struct stat { }
     struct path { }
     struct fuse_fill_dir { }
-    struct timespec {}
+    struct timespec { }
     enum fuse_fill_dir_flags { }
-    struct fuse_file_info
-    { }
+    struct fuse_file_info { }
+    struct statvfs { }
+    struct flock { }
 
     unsafe struct fuse_args
     {
@@ -40,6 +41,22 @@ namespace Tmds.Fuse
     unsafe delegate int chmod_Delegate(path* path, uint mode, fuse_file_info* fi);
     unsafe delegate int link_Delegate(path* fromPath, path* toPath);
     unsafe delegate int utimes_Delegate(path* path, timespec* tv, fuse_file_info* fi);
+    unsafe delegate int readlink_Delegate(path* path, void* buffer, size_t size);
+    unsafe delegate int symlink_delegate(path* path, path* path2);
+    unsafe delegate int rename_delegate(path* path, path* path2, int flags);
+    unsafe delegate int chown_delegate(path* path, uint uid, uint gid, fuse_file_info* fi);
+    unsafe delegate int statfs_delegate(path* path, statvfs* vfs);
+    unsafe delegate int flush_delegate(path* path, fuse_file_info* fi);
+    unsafe delegate int fsync_delegate(path* path, fuse_file_info* fi);
+    unsafe delegate int setxattr_delegate(path* path, void* name, void* buffer, size_t size, int flags);
+    unsafe delegate int getxattr_delegate(path* path, void* name, void* buffer, size_t size);
+    unsafe delegate int listxattr_delegate(path* path, void* buffer, size_t size);
+    unsafe delegate int removeattr_delegate(path* path, void* name);
+    unsafe delegate int opendir_delegate(path* path, fuse_file_info* fi);
+    unsafe delegate int releasedir_delegate(path* path, fuse_file_info* fi);
+    unsafe delegate int fsyncdir_delegate(path* path, int datasync, fuse_file_info* fi);
+    unsafe delegate int access_delegate(path* path, uint mode);
+    unsafe delegate int fallocate_delegate(path* path, int mode, ulong off, ulong length, fuse_file_info* fi);
 
     /**
     * The file system operations:
@@ -88,7 +105,7 @@ namespace Tmds.Fuse
         * for success.
         */
         //int (*readlink) (const char *, char *, size_t);
-        IntPtr readlink;
+        public IntPtr readlink;
 
         /** Create a file node
         *
@@ -118,7 +135,7 @@ namespace Tmds.Fuse
 
         /** Create a symbolic link */
         //int (*symlink) (const char *, const char *);
-        IntPtr symlink;
+        public IntPtr symlink;
 
         /** Rename a file
         *
@@ -130,7 +147,7 @@ namespace Tmds.Fuse
         * exist and neither may be deleted.
         */
         //int (*rename) (const char *, const char *, unsigned int flags);
-        IntPtr rename;
+        public IntPtr rename;
 
         /** Create a hard link to a file */
         //int (*link) (const char *, const char *);
@@ -153,7 +170,7 @@ namespace Tmds.Fuse
         * expected to reset the setuid and setgid bits.
         */
         //int (*chown) (const char *, uid_t, gid_t, struct fuse_file_info *fi);
-        IntPtr chown;
+        public IntPtr chown;
 
         /** Change the size of a file
         *
@@ -248,7 +265,7 @@ namespace Tmds.Fuse
         * The 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
         */
         //int (*statfs) (const char *, struct statvfs *);
-        IntPtr statfs;
+        public IntPtr statfs;
 
         /** Possibly flush cached data
         *
@@ -272,7 +289,7 @@ namespace Tmds.Fuse
         * after some writes, or that if will be called at all.
         */
         //int (*flush) (const char *, struct fuse_file_info *);
-        IntPtr flush;
+        public IntPtr flush;
 
         /** Release an open file
         *
@@ -295,23 +312,23 @@ namespace Tmds.Fuse
         * should be flushed, not the meta data.
         */
         //int (*fsync) (const char *, int, struct fuse_file_info *);
-        IntPtr fsync;
+        public IntPtr fsync;
 
         /** Set extended attributes */
         //int (*setxattr) (const char *, const char *, const char *, size_t, int);
-        IntPtr setxattr;
+        public IntPtr setxattr;
 
         /** Get extended attributes */
         //int (*getxattr) (const char *, const char *, char *, size_t);
-        IntPtr getxattr;
+        public IntPtr getxattr;
 
         /** List extended attributes */
         //int (*listxattr) (const char *, char *, size_t);
-        IntPtr listxattr;
+        public IntPtr listxattr;
 
         /** Remove extended attributes */
         //int (*removexattr) (const char *, const char *);
-        IntPtr removexattr;
+        public IntPtr removexattr;
 
         /** Open directory
         *
@@ -322,7 +339,7 @@ namespace Tmds.Fuse
         * passed to readdir, closedir and fsyncdir.
         */
         //int (*opendir) (const char *, struct fuse_file_info *);
-        IntPtr opendir;
+        public IntPtr opendir;
 
         /** Read directory
         *
@@ -346,7 +363,7 @@ namespace Tmds.Fuse
         /** Release directory
         */
         //int (*releasedir) (const char *, struct fuse_file_info *);
-        IntPtr releasedir;
+        public IntPtr releasedir;
 
         /** Synchronize directory contents
         *
@@ -354,7 +371,7 @@ namespace Tmds.Fuse
         * should be flushed, not the meta data
         */
         //int (*fsyncdir) (const char *, int, struct fuse_file_info *);
-        IntPtr fsyncdir;
+        public IntPtr fsyncdir;
 
         /**
         * Initialize filesystem
@@ -386,7 +403,7 @@ namespace Tmds.Fuse
         * This method is not called under Linux kernel versions 2.4.x
         */
         //int (*access) (const char *, int);
-        IntPtr access;
+        public IntPtr access;
 
         /**
         * Create and open a file
@@ -557,6 +574,6 @@ namespace Tmds.Fuse
         */
         //int (*fallocate) (const char *, int, off_t, off_t,
         //                  struct fuse_file_info *);
-        IntPtr fallocate;
+        public IntPtr fallocate;
     };
 }
