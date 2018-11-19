@@ -94,8 +94,8 @@ namespace Tmds.Fuse
         public long tv_sec { get; set; }
         public long tv_nsec { get; set; }
 
-        public bool IsNow => tv_sec == UTIME_NOW;
-        public bool IsOmit => tv_sec == UTIME_OMIT;
+        public bool IsNow => tv_nsec == UTIME_NOW;
+        public bool IsOmit => tv_nsec == UTIME_OMIT;
 
         public DateTime ToDateTime()
         {
@@ -104,6 +104,22 @@ namespace Tmds.Fuse
                 throw new InvalidOperationException("Cannot convert meta value to DateTime");
             }
             return new DateTime(UnixEpochTicks + TimeSpan.TicksPerSecond * tv_sec + tv_nsec / 100, DateTimeKind.Utc);
+        }
+
+        public override string ToString()
+        {
+            if (IsNow)
+            {
+                return "now";
+            }
+            else if (IsOmit)
+            {
+                return "omit";
+            }
+            else
+            {
+                return ToDateTime().ToString();
+            }
         }
 
         public static implicit operator TimeSpec(DateTime dateTime)
