@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
-using static Tmds.Fuse.PlatformConstants;
 using static Tmds.Fuse.FuseConstants;
 
 namespace Tmds.Fuse
@@ -74,9 +73,11 @@ namespace Tmds.Fuse
         {
             try
             {
-                TimeSpec atime = new TimeSpec(tv);
-                TimeSpec mtime = new TimeSpec((timespec*)((byte*)tv + TimespecSizeOf));
-                return _fileSystem.UpdateTimestamps(ToSpan(path), atime, mtime, ToFileInfo(fi));
+                Span<TimeSpec> specs = new Span<TimeSpec>(tv, 2);
+                return _fileSystem.UpdateTimestamps(ToSpan(path),
+                                                    ref MemoryMarshal.GetReference(specs),
+                                                    ref MemoryMarshal.GetReference(specs.Slice(1)),
+                                                    ToFileInfo(fi));
             }
             catch
             {
@@ -96,7 +97,7 @@ namespace Tmds.Fuse
             }
         }
 
-        private unsafe int Chmod(path* path, int mode, fuse_file_info* fi)
+        private unsafe int Chmod(path* path, uint mode, fuse_file_info* fi)
         {
             try
             {
@@ -120,7 +121,7 @@ namespace Tmds.Fuse
             }
         }
 
-        private unsafe int Create(path* path, int mode, fuse_file_info* fi)
+        private unsafe int Create(path* path, uint mode, fuse_file_info* fi)
         {
             try
             {
@@ -132,7 +133,7 @@ namespace Tmds.Fuse
             }
         }
 
-        private unsafe int Mkdir(path* path, int mode)
+        private unsafe int Mkdir(path* path, uint mode)
         {
             try
             {
@@ -184,9 +185,9 @@ namespace Tmds.Fuse
         {
             try
             {
-                Stat s = ToStat(stat);
-                s.Clear();
-                return _fileSystem.GetAttr(ToSpan(path), s, ToFileInfo(fi));
+                Span<Stat> span = new Span<Stat>(stat, 1);
+                span.Clear();
+                return _fileSystem.GetAttr(ToSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
             }
             catch
             {
@@ -257,9 +258,17 @@ namespace Tmds.Fuse
             }
         }
 
-        private unsafe FuseFileInfo ToFileInfo(fuse_file_info* fi) => new FuseFileInfo(fi);
-
-        private unsafe Stat ToStat(stat* stat) => new Stat(stat);
+        private unsafe FuseFileInfoRef ToFileInfo(fuse_file_info* fi)
+        {
+            if (fi == null)
+            {
+                return new FuseFileInfoRef(new Span<FuseFileInfo>());
+            }
+            else
+            {
+                return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, 1));
+            }
+        }
 
         private unsafe ReadOnlySpan<byte> ToSpan(path* path)
         {
