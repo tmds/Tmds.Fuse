@@ -17,6 +17,7 @@ namespace Tmds.Fuse
         public ulong st_rdev { get; set; }
         public long st_size { get; set; }
         public long st_blksize { get; set; }
+        public long st_blocks { get; set; }
         public TimeSpec st_atim { get; set; }
         public TimeSpec st_mtim { get; set; }
         public TimeSpec st_ctim { get; set; }
