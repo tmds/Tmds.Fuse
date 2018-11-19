@@ -237,7 +237,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<StatVFS> span = new Span<StatVFS>(vfs, 1); // TODO: what length??
+                Span<StatVFS> span = new Span<StatVFS>(vfs, sizeof(StatVFS));
                 span.Clear();
                 return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
             }
@@ -299,7 +299,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<TimeSpec> specs = new Span<TimeSpec>(tv, 2);
+                Span<TimeSpec> specs = new Span<TimeSpec>(tv, sizeof(TimeSpec) * 2);
                 return _fileSystem.UpdateTimestamps(ToSpan(path),
                                                     ref MemoryMarshal.GetReference(specs),
                                                     ref MemoryMarshal.GetReference(specs.Slice(1)),
@@ -411,7 +411,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<Stat> span = new Span<Stat>(stat, 1);
+                Span<Stat> span = new Span<Stat>(stat, sizeof(Stat));
                 span.Clear();
                 return _fileSystem.GetAttr(ToSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
             }
@@ -492,7 +492,7 @@ namespace Tmds.Fuse
             }
             else
             {
-                return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, 1));
+                return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, sizeof(FuseFileInfo)));
             }
         }
 
