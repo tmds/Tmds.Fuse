@@ -224,13 +224,13 @@ namespace Tmds.Fuse
 
     public class FuseFileSystemBase : IFuseFileSystem
     {
-        public int Access(ReadOnlySpan<byte> path, uint mode)
+        public virtual int Access(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;
 
         public virtual int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi)
+        public virtual int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
@@ -239,28 +239,28 @@ namespace Tmds.Fuse
         public virtual void Dispose()
         { }
 
-        public int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, FuseFileInfoRef fuseFileInfoRef)
+        public virtual int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, FuseFileInfoRef fuseFileInfoRef)
             => FuseConstants.ENOSYS;
 
-        public int Flush(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int Flush(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int FSync(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int FSync(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, FuseFileInfoRef fuseFileInfoRef)
+        public virtual int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, FuseFileInfoRef fuseFileInfoRef)
             => FuseConstants.ENOSYS;
 
         public virtual int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int GetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, Span<byte> data)
+        public virtual int GetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, Span<byte> data)
             => FuseConstants.ENOSYS;
 
         public virtual int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
             => FuseConstants.ENOSYS;
 
-        public int ListXAttr(ReadOnlySpan<byte> path, Span<byte> list)
+        public virtual int ListXAttr(ReadOnlySpan<byte> path, Span<byte> list)
             => FuseConstants.ENOSYS;
 
         public virtual int MkDir(ReadOnlySpan<byte> path, uint mode)
@@ -269,7 +269,7 @@ namespace Tmds.Fuse
         public virtual int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int OpenDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int OpenDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
@@ -278,30 +278,30 @@ namespace Tmds.Fuse
         public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer)
+        public virtual int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer)
             => FuseConstants.ENOSYS;
 
         public virtual void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
         { }
 
-        public int ReleaseDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int ReleaseDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public int RemoveXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name)
+        public virtual int RemoveXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name)
             => FuseConstants.ENOSYS;
-        public int Rename(ReadOnlySpan<byte> path, ReadOnlySpan<byte> newPath, int flags)
+        public virtual int Rename(ReadOnlySpan<byte> path, ReadOnlySpan<byte> newPath, int flags)
             => FuseConstants.ENOSYS;
 
         public virtual int RmDir(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public int SetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, ReadOnlySpan<byte> data, int flags)
+        public virtual int SetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, ReadOnlySpan<byte> data, int flags)
             => FuseConstants.ENOSYS;
 
-        public int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs)
+        public virtual int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs)
             => FuseConstants.ENOSYS;
 
-        public int SymLink(ReadOnlySpan<byte> path, ReadOnlySpan<byte> target)
+        public virtual int SymLink(ReadOnlySpan<byte> path, ReadOnlySpan<byte> target)
             => FuseConstants.ENOSYS;
 
         public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi)
