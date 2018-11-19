@@ -438,7 +438,7 @@ namespace Mounter
             }
             if (entry != null)
             {
-                return EEXIST; // TODO, is this correct?
+                return EEXIST;
             }
 
             File newFile = parent.AddFile(name, Array.Empty<byte>(), mode);

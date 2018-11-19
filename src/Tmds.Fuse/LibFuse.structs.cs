@@ -43,8 +43,8 @@ namespace Tmds.Fuse
     unsafe delegate int utimes_Delegate(path* path, timespec* tv, fuse_file_info* fi);
     unsafe delegate int readlink_Delegate(path* path, void* buffer, size_t size);
     unsafe delegate int symlink_delegate(path* path, path* path2);
-    unsafe delegate int rename_delegate(path* path, path* path2, int flags); // TODO add RENAME_EXCHANGE/RENAME_NOREPLACE
-    unsafe delegate int chown_delegate(path* path, uint uid /* TODO, correct? */, uint gid /* TODO, correct? */, fuse_file_info* fi);
+    unsafe delegate int rename_delegate(path* path, path* path2, int flags);
+    unsafe delegate int chown_delegate(path* path, uint uid, uint gid, fuse_file_info* fi);
     unsafe delegate int statfs_delegate(path* path, statvfs* vfs);
     unsafe delegate int flush_delegate(path* path, fuse_file_info* fi);
     unsafe delegate int fsync_delegate(path* path, fuse_file_info* fi);

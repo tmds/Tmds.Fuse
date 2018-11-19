@@ -237,7 +237,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<StatVFS> span = new Span<StatVFS>(vfs, sizeof(StatVFS));
+                Span<StatVFS> span = new Span<StatVFS>(vfs, 1);
                 span.Clear();
                 return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
             }
@@ -275,7 +275,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.SymLink(ToSpan(path), ToSpan(path2));
+                return _fileSystem.SymLink(ToSpan(path2), ToSpan(path));
             }
             catch
             {
@@ -299,7 +299,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<TimeSpec> specs = new Span<TimeSpec>(tv, sizeof(TimeSpec) * 2);
+                Span<TimeSpec> specs = new Span<TimeSpec>(tv, 2);
                 return _fileSystem.UpdateTimestamps(ToSpan(path),
                                                     ref MemoryMarshal.GetReference(specs),
                                                     ref MemoryMarshal.GetReference(specs.Slice(1)),
@@ -411,7 +411,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<Stat> span = new Span<Stat>(stat, sizeof(Stat));
+                Span<Stat> span = new Span<Stat>(stat, 1);
                 span.Clear();
                 return _fileSystem.GetAttr(ToSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
             }
@@ -492,7 +492,7 @@ namespace Tmds.Fuse
             }
             else
             {
-                return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, sizeof(FuseFileInfo)));
+                return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, 1));
             }
         }
 
@@ -529,22 +529,22 @@ namespace Tmds.Fuse
             ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
             ops.link = Marshal.GetFunctionPointerForDelegate(_link);
             ops.utimens = Marshal.GetFunctionPointerForDelegate(_utimens);
-            ops.readlink = Marshal.GetFunctionPointerForDelegate(_readlink);
-            ops.symlink = Marshal.GetFunctionPointerForDelegate(_symlink);
-            ops.rename = Marshal.GetFunctionPointerForDelegate(_rename);
-            ops.chown = Marshal.GetFunctionPointerForDelegate(_chown);
-            ops.statfs = Marshal.GetFunctionPointerForDelegate(_statfs);
-            ops.flush = Marshal.GetFunctionPointerForDelegate(_flush);
-            ops.fsync = Marshal.GetFunctionPointerForDelegate(_fsync);
-            ops.setxattr = Marshal.GetFunctionPointerForDelegate(_setxattr);
-            ops.getxattr = Marshal.GetFunctionPointerForDelegate(_getxattr);
-            ops.listxattr = Marshal.GetFunctionPointerForDelegate(_listxattr);
-            ops.removexattr = Marshal.GetFunctionPointerForDelegate(_removexattr);
-            ops.opendir = Marshal.GetFunctionPointerForDelegate(_opendir);
-            ops.releasedir = Marshal.GetFunctionPointerForDelegate(_releasedir);
-            ops.fsyncdir = Marshal.GetFunctionPointerForDelegate(_fsyncdir);
-            ops.access = Marshal.GetFunctionPointerForDelegate(_access);
-            ops.fallocate = Marshal.GetFunctionPointerForDelegate(_fallocate);
+            // ops.readlink = Marshal.GetFunctionPointerForDelegate(_readlink);
+            // ops.symlink = Marshal.GetFunctionPointerForDelegate(_symlink);
+            // ops.rename = Marshal.GetFunctionPointerForDelegate(_rename);
+            // ops.chown = Marshal.GetFunctionPointerForDelegate(_chown);
+            // ops.statfs = Marshal.GetFunctionPointerForDelegate(_statfs);
+            // ops.flush = Marshal.GetFunctionPointerForDelegate(_flush);
+            // ops.fsync = Marshal.GetFunctionPointerForDelegate(_fsync);
+            // ops.setxattr = Marshal.GetFunctionPointerForDelegate(_setxattr);
+            // ops.getxattr = Marshal.GetFunctionPointerForDelegate(_getxattr);
+            // ops.listxattr = Marshal.GetFunctionPointerForDelegate(_listxattr);
+            // ops.removexattr = Marshal.GetFunctionPointerForDelegate(_removexattr);
+            // ops.opendir = Marshal.GetFunctionPointerForDelegate(_opendir);
+            // ops.releasedir = Marshal.GetFunctionPointerForDelegate(_releasedir);
+            // ops.fsyncdir = Marshal.GetFunctionPointerForDelegate(_fsyncdir);
+            // ops.access = Marshal.GetFunctionPointerForDelegate(_access);
+            // ops.fallocate = Marshal.GetFunctionPointerForDelegate(_fallocate);
 
             // TODO: cleanup/unmount
             var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);
