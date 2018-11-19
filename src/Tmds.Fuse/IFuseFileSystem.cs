@@ -1,199 +1,84 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using static Tmds.Fuse.PlatformConstants;
 
 namespace Tmds.Fuse
 {
-    static class MemoryHelper
+    // This matches the layout of 'struct stat' on linux-x64
+    public unsafe struct Stat
     {
-        public static unsafe void WriteSizeOf(int size, void* memory, int offset, long value)
-        {
-            if (size == 4)
-            {
-                Write<int>(memory, offset, (int)value);
-            }
-            else if (size == 8)
-            {
-                Write<long>(memory, offset, value);
-            }
-        }
-
-        public static unsafe long ReadSizeOf(int size, void* memory, int offset)
-        {
-            if (size == 4)
-            {
-                return Read<int>(memory, offset);
-            }
-            else if (size == 8)
-            {
-                return Read<long>(memory, offset);
-            }
-            else
-            {
-                return -1;
-            }
-        }
-
-        public unsafe static void Write<T>(void* memory, int offset, T value) where T : unmanaged
-            => *(T*)((byte*)memory + offset) = value;
-
-        public unsafe static T Read<T>(void* memory, int offset) where T : unmanaged
-            => *(T*)((byte*)memory + offset);
+        public ulong st_dev { get; set; }
+        public ulong st_ino { get; set; }
+        public ulong st_nlink { get; set; }
+        public uint st_mode { get; set; }
+        public uint st_uid { get; set; }
+        public uint st_gid { get; set; }
+        private int __pad0;
+        public ulong st_rdev { get; set; }
+        public long st_size { get; set; }
+        public long st_blksize { get; set; }
+        public TimeSpec st_atim { get; set; }
+        public TimeSpec st_mtim { get; set; }
+        public TimeSpec st_ctim { get; set; }
+        private fixed long __glib_reserved[2];
     }
 
-    public unsafe ref struct Stat
+    public ref struct FuseFileInfoRef
     {
-        private readonly stat* _stat;
+        Span<FuseFileInfo> _value;
 
-        internal Stat(stat* stat)
-            => _stat = stat;
-
-        public int Mode
+        public FuseFileInfoRef(Span<FuseFileInfo> fi)
         {
-            set => MemoryHelper.Write<int>(_stat, StatOffsetOfStMode, value);
+            _value = fi;
         }
 
-        public int NLink
-        {
-            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfNLink, new IntPtr(value));
-            get => MemoryHelper.Read<IntPtr>(_stat, StatOffsetOfNLink).ToInt32();
-        }
+        public bool IsNull => _value.IsEmpty;
 
-        public ulong SizeLong
-        {
-            set => MemoryHelper.Write<ulong>(_stat, StatOffsetOfStSize, value);
-        }
-
-        public int Size
-        {
-            set => SizeLong = (ulong)value;
-        }
-
-        internal void Clear()
-        {
-            for (int i = 0; i < StatSizeOf; i++)
-            {
-                *((byte*)_stat + i) = 0;
-            }
-        }
-
-        public long ATimeSec
-        {
-            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStATime, value);
-        }
-
-        public long ATimeNSec
-        {
-            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfStATimeNsec, new IntPtr(value));
-        }
-
-        public DateTime ATime
-        {
-            set
-            {
-                long sec, nsec;
-                GetTimeValues(value, out sec, out nsec);
-                ATimeSec = sec;
-                ATimeNSec = nsec;
-            }
-        }
-
-        public long MTimeSec
-        {
-            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _stat, StatOffsetOfStMTime, value);
-        }
-
-        public long MTimeNSec
-        {
-            set => MemoryHelper.Write<IntPtr>(_stat, StatOffsetOfStMTimeNsec, new IntPtr(value));
-        }
-
-        public DateTime MTime
-        {
-            set
-            {
-                long sec, nsec;
-                GetTimeValues(value, out sec, out nsec);
-                MTimeSec = sec;
-                MTimeNSec = nsec;
-            }
-        }
-
-        private void GetTimeValues(DateTime value, out long sec, out long nsec)
-        {
-            value = value.ToUniversalTime();
-            long ticks = value.Ticks - UnixEpochTicks;
-            sec = ticks / TimeSpan.TicksPerSecond;
-            ticks -= TimeSpan.TicksPerSecond * sec;
-            nsec = ticks * 100;
-        }
-
-        private const long UnixEpochTicks = 621355968000000000;
+        public ref FuseFileInfo Value => ref MemoryMarshal.GetReference(_value);
     }
 
     // This is named FuseFileInfo so it doesn't clash with System.IO.FileInfo
-    public unsafe ref struct FuseFileInfo
+    public struct FuseFileInfo
     {
-        private readonly fuse_file_info* _fi;
+        public int flags { get; set; }
+        private int _bitfields { get; set; }
+        private int _padding0;
+        private int _padding2;
+        public ulong fh { get; set; }
+        public ulong lock_owner { get; set; }
+        public uint poll_events { get; set; }
 
-        public bool IsNull => _fi == null;
-
-        internal FuseFileInfo(fuse_file_info* fi)
+        public bool writepage
         {
-            _fi = fi;
+            get => (_bitfields & WRITEPAGE) != 0;
+            set => _bitfields |= WRITEPAGE;
         }
 
-        public int Flags
+        public bool direct_io
         {
-            get => _fi->flags;
-            set => _fi->flags = value;
+            get => (_bitfields & DIRECTIO) != 0;
+            set => _bitfields |= DIRECTIO;
         }
 
-        public ulong FileDescriptor
+        public bool keep_cache
         {
-            get => _fi->fh;
-            set => _fi->fh = value;
+            get => (_bitfields & KEEPCACHE) != 0;
+            set => _bitfields |= KEEPCACHE;
         }
 
-        public bool DirectIO
-        {
-            get => (_fi->bitfields & FileInfoDirectIoFieldMask) != 0;
-            set
-            {
-                if (value)
-                {
-                    _fi->bitfields |= FileInfoDirectIoFieldMask;
-                }
-                else
-                {
-                    _fi->bitfields &= ~FileInfoDirectIoFieldMask;
-                }
-            }
-        }
+        private const int WRITEPAGE = 1;
+        private const int DIRECTIO = 2;
+        private const int KEEPCACHE = 3;
     }
 
-    public unsafe ref struct TimeSpec
+    // This matches the layout of 'struct timespec' on linux-x64
+    public unsafe struct TimeSpec
     {
-        private readonly timespec* _ts;
+        public long tv_sec { get; set; }
+        public long tv_nsec { get; set; }
 
-        internal TimeSpec(timespec* ts)
-            => _ts = ts;
-
-        public long Sec
-        {
-            get => MemoryHelper.ReadSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec);
-            set => MemoryHelper.WriteSizeOf(TimeTSizeOf, _ts, TimespecOffsetOfTvSec, value);
-        }
-
-        public long NSec
-        {
-            get => MemoryHelper.Read<IntPtr>(_ts, TimespecOffsetOfTvNsec).ToInt64();
-            set => MemoryHelper.Write<IntPtr>(_ts, TimespecOffsetOfTvNsec, new IntPtr(value));
-        }
-
-        public bool IsNow => NSec == UTIME_NOW;
-        public bool IsOmit => NSec == UTIME_OMIT;
+        public bool IsNow => tv_sec == UTIME_NOW;
+        public bool IsOmit => tv_sec == UTIME_OMIT;
 
         public DateTime ToDateTime()
         {
@@ -201,10 +86,22 @@ namespace Tmds.Fuse
             {
                 throw new InvalidOperationException("Cannot convert meta value to DateTime");
             }
-            return new DateTime(UnixEpochTicks + TimeSpan.TicksPerSecond * Sec + NSec / 100, DateTimeKind.Utc);
+            return new DateTime(UnixEpochTicks + TimeSpan.TicksPerSecond * tv_sec + tv_nsec / 100, DateTimeKind.Utc);
+        }
+
+        public static implicit operator TimeSpec(DateTime dateTime)
+        {
+            dateTime = dateTime.ToUniversalTime();
+            long ticks = dateTime.Ticks - UnixEpochTicks;
+            long sec = ticks / TimeSpan.TicksPerSecond;
+            ticks -= TimeSpan.TicksPerSecond * sec;
+            long nsec = ticks * 100;
+            return new TimeSpec { tv_sec = sec, tv_nsec = nsec };
         }
 
         private const long UnixEpochTicks = 621355968000000000;
+        public const int UTIME_OMIT = 1073741822;
+        public const int UTIME_NOW = 1073741823;
     }
 
     public unsafe ref struct DirectoryContent
@@ -277,67 +174,67 @@ namespace Tmds.Fuse
 
     public interface IFuseFileSystem : IDisposable
     {
-        int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi);
-        int Open(ReadOnlySpan<byte> path, FuseFileInfo fi);
-        void Release(ReadOnlySpan<byte> path, FuseFileInfo fi);
-        int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi);
-        int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi);
+        int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi);
+        int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
+        void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
+        int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi);
+        int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi);
         int RmDir(ReadOnlySpan<byte> path);
         int Unlink(ReadOnlySpan<byte> path);
-        int MkDir(ReadOnlySpan<byte> path, int mode);
-        int Create(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi);
-        int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfo fi);
-        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfo fi);
-        int ChMod(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi);
+        int MkDir(ReadOnlySpan<byte> path, uint mode);
+        int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi);
+        int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi);
+        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfoRef fi);
+        int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi);
         int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
-        int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FuseFileInfo fi);
+        int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
     {
-        public virtual int ChMod(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
+        public virtual int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Create(ReadOnlySpan<byte> path, int mode, FuseFileInfo fi)
+        public virtual int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
         public virtual void Dispose()
         { }
 
-        public virtual int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
+        public virtual int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath)
             => FuseConstants.ENOSYS;
 
-        public virtual int MkDir(ReadOnlySpan<byte> path, int mode)
+        public virtual int MkDir(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;
 
-        public virtual int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
+        public virtual int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi)
+        public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
+        public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual void Release(ReadOnlySpan<byte> path, FuseFileInfo fi)
+        public virtual void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
         { }
 
         public virtual int RmDir(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfo fi)
+        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
         public virtual int Unlink(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, TimeSpec atime, TimeSpec mtime, FuseFileInfo fi)
+        public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FuseFileInfo fi)
+        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
     }
 

@@ -10,19 +10,19 @@ namespace Mounter
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
-        public override int GetAttr(ReadOnlySpan<byte> path, Stat stat, FuseFileInfo fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
         {
             if (path.SequenceEqual(RootPath))
             {
-                stat.Mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
-                stat.NLink = 2; // 2 + nr of subdirectories
+                stat.st_mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
+                stat.st_nlink = 2; // 2 + nr of subdirectories
                 return 0;
             }
             else if (path.SequenceEqual(_helloFilePath))
             {
-                stat.Mode = S_IFREG | 0b100_100_100; // r--r--r--
-                stat.NLink = 1;
-                stat.Size = _helloFileContent.Length;
+                stat.st_mode = S_IFREG | 0b100_100_100; // r--r--r--
+                stat.st_nlink = 1;
+                stat.st_size = _helloFileContent.Length;
                 return 0;
             }
             else
@@ -31,14 +31,14 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FuseFileInfo fi)
+        public override int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
                 return ENOENT;
             }
 
-            if ((fi.Flags & O_ACCMODE) != O_RDONLY)
+            if ((fi.Value.flags & O_ACCMODE) != O_RDONLY)
             {
                 return EACCES;
             }
@@ -46,7 +46,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfo fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
         {
             if (offset > (ulong)_helloFileContent.Length)
             {
@@ -58,7 +58,7 @@ namespace Mounter
             return length;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfo fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
         {
             if (!path.SequenceEqual(RootPath))
             {
