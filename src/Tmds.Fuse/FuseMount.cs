@@ -105,7 +105,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.FAllocate(ToSpan(path), mode, offset, (long)length, ToFileInfo(fi));
+                return _fileSystem.FAllocate(ToSpan(path), mode, offset, (long)length, ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -129,7 +129,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.FSyncDir(ToSpan(path), datasync != 0, ToFileInfo(fi));
+                return _fileSystem.FSyncDir(ToSpan(path), datasync != 0, ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -141,7 +141,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.ReleaseDir(ToSpan(path), ToFileInfo(fi));
+                return _fileSystem.ReleaseDir(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -153,7 +153,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.OpenDir(ToSpan(path), ToFileInfo(fi));
+                return _fileSystem.OpenDir(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -213,7 +213,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.FSync(ToSpan(path), ToFileInfo(fi));
+                return _fileSystem.FSync(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -225,7 +225,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Flush(ToSpan(path), ToFileInfo(fi));
+                return _fileSystem.Flush(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -351,7 +351,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Create(ToSpan(path), mode, ToFileInfo(fi));
+                return _fileSystem.Create(ToSpan(path), mode, ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -399,7 +399,7 @@ namespace Tmds.Fuse
             try
             {
                 // TODO: handle size > int.MaxValue
-                return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ToFileInfo(fi));
+                return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -438,7 +438,7 @@ namespace Tmds.Fuse
                     _previousFiller = new ManagedFiller(filler, fillDelegate);
                 }
 
-                return _fileSystem.ReadDir(ToSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ToFileInfo(fi));
+                return _fileSystem.ReadDir(ToSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -450,7 +450,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Open(ToSpan(path), ToFileInfo(fi));
+                return _fileSystem.Open(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -463,7 +463,7 @@ namespace Tmds.Fuse
             try
             {
                 // TODO: handle size > int.MaxValue
-                return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ToFileInfo(fi));
+                return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -475,7 +475,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                _fileSystem.Release(ToSpan(path), ToFileInfo(fi));
+                _fileSystem.Release(ToSpan(path), ref ToFileInfoRef(fi));
                 return 0;
             }
             catch
@@ -493,6 +493,18 @@ namespace Tmds.Fuse
             else
             {
                 return new FuseFileInfoRef(new Span<FuseFileInfo>(fi, 1));
+            }
+        }
+
+        private unsafe ref FuseFileInfo ToFileInfoRef(fuse_file_info* fi)
+        {
+            if (fi == null)
+            {
+                throw new InvalidOperationException($"unexpected: {nameof(fi)} is null");
+            }
+            else
+            {
+                return ref MemoryMarshal.GetReference<FuseFileInfo>(new Span<FuseFileInfo>(fi, 1));
             }
         }
 
