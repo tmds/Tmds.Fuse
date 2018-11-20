@@ -4,7 +4,7 @@ Write a Linux file system in .NET.
 
 ## Supported platforms
 
-Tmds.Fuse supports Linux x64 platforms.
+Tmds.Fuse supports Linux x64 platforms with libfuse 3.1+.
 
 ## Getting Started
 
