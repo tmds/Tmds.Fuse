@@ -241,6 +241,8 @@ namespace Tmds.Fuse
 
     public interface IFuseFileSystem : IDisposable
     {
+        bool SupportsMultiThreading { get; }
+
         int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef);
         int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fiRef);
         int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
@@ -275,6 +277,8 @@ namespace Tmds.Fuse
 
     public class FuseFileSystemBase : IFuseFileSystem
     {
+        public bool SupportsMultiThreading => false;
+
         public virtual int Access(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;
 

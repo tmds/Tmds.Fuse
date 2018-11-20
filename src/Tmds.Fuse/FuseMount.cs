@@ -17,9 +17,15 @@ namespace Tmds.Fuse
             System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
     }
 
+    public class MountOptions
+    {
+        public bool SingleThread { get; set; } = false;
+    }
+
     class FuseMount : IDisposable
     {
         private readonly string _mountPoint;
+        private readonly MountOptions _mountOptions;
         private readonly IFuseFileSystem _fileSystem;
         private readonly getattr_Delegate _getattr;
         private readonly readdir_Delegate _readdir;
@@ -65,9 +71,11 @@ namespace Tmds.Fuse
         }
         private ManagedFiller _previousFiller;
 
-        public unsafe FuseMount(string mountPoint, IFuseFileSystem fileSystem)
+        public unsafe FuseMount(string mountPoint, IFuseFileSystem fileSystem, MountOptions options)
         {
             _mountPoint = mountPoint;
+            _mountOptions = options;
+
             _fileSystem = fileSystem;
             _getattr = Getattr;
             _read = Read;
@@ -565,7 +573,15 @@ namespace Tmds.Fuse
             {
                 ThrowException(nameof(LibFuse.fuse_mount), rv);
             }
-            rv = LibFuse.fuse_loop(fuse);
+            bool singleThread = !_fileSystem.SupportsMultiThreading || _mountOptions.SingleThread;
+            if (singleThread)
+            {
+                rv = LibFuse.fuse_loop(fuse);
+            }
+            else
+            {
+                rv = LibFuse.fuse_loop_mt(fuse, clone_fd: 0);
+            }
             if (rv != 0)
             {
                 ThrowException(nameof(LibFuse.fuse_loop), rv);
