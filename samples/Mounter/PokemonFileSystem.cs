@@ -50,7 +50,7 @@ namespace Mounter
             }
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(RootPath))
             {
@@ -66,9 +66,9 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
         {
-            byte[] data = _openFiles[fi.Value.fh].Data;
+            byte[] data = _openFiles[fi.fh].Data;
             if (offset > (ulong)data.Length)
             {
                 return 0;
@@ -79,12 +79,12 @@ namespace Mounter
             return length;
         }
 
-        public override void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public override void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
         {
-            _openFiles.Remove(fi.Value.fh);
+            _openFiles.Remove(fi.fh);
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
         {
             string name = Encoding.UTF8.GetString(path.Slice(1)) + "/";
             byte[] data = GetAsBytes(name);
@@ -94,8 +94,8 @@ namespace Mounter
             }
 
             ulong fd = FindFreeFd();
-            fi.Value.fh = fd;
-            fi.Value.direct_io = true; // GetAttr doesn't return the actual size.
+            fi.fh = fd;
+            fi.direct_io = true; // GetAttr doesn't return the actual size.
             _openFiles.Add(fd, new OpenFile(data));
 
             return 0;

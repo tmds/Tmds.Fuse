@@ -335,14 +335,14 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
-            => _openFiles[fi.Value.fh].Read(offset, buffer);
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
+            => _openFiles[fi.fh].Read(offset, buffer);
 
-        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfoRef fi)
-            => _openFiles[fi.Value.fh].Write(offset, buffer);
+        public override int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, ref FuseFileInfo fi)
+            => _openFiles[fi.fh].Write(offset, buffer);
 
-        public override void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
-            => _openFiles.Remove(fi.Value.fh);
+        public override void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
+            => _openFiles.Remove(fi.fh);
 
         public override int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi)
         {
@@ -406,7 +406,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
             Entry entry = _root.FindEntry(path);
             if (entry == null)
@@ -429,7 +429,7 @@ namespace Mounter
             }
         }
 
-        public override int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
+        public override int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -442,7 +442,7 @@ namespace Mounter
             }
 
             File newFile = parent.AddFile(name, Array.Empty<byte>(), mode);
-            fi.Value.fh = FindFreeFileDescriptor(newFile);
+            fi.fh = FindFreeFileDescriptor(newFile);
             return 0;
         }
 
@@ -474,7 +474,7 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
@@ -488,11 +488,11 @@ namespace Mounter
             }
             if (entry is File file)
             {
-                if ((fi.Value.flags & O_TRUNC) != 0)
+                if ((fi.flags & O_TRUNC) != 0)
                 {
                     file.Truncate(0);
                 }
-                fi.Value.fh = FindFreeFileDescriptor(file);
+                fi.fh = FindFreeFileDescriptor(file);
                 return 0;
             }
             else

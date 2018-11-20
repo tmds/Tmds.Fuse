@@ -31,14 +31,14 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
                 return ENOENT;
             }
 
-            if ((fi.Value.flags & O_ACCMODE) != O_RDONLY)
+            if ((fi.flags & O_ACCMODE) != O_RDONLY)
             {
                 return EACCES;
             }
@@ -46,7 +46,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
+        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
         {
             if (offset > (ulong)_helloFileContent.Length)
             {
@@ -58,7 +58,7 @@ namespace Mounter
             return length;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
+        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(RootPath))
             {

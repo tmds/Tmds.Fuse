@@ -68,19 +68,37 @@ namespace Tmds.Fuse
         public bool writepage
         {
             get => (_bitfields & WRITEPAGE) != 0;
-            set => _bitfields |= WRITEPAGE;
+            set
+            {
+                if (value)
+                    _bitfields |= WRITEPAGE;
+                else
+                    _bitfields &= ~WRITEPAGE;
+            }
         }
 
         public bool direct_io
         {
             get => (_bitfields & DIRECTIO) != 0;
-            set => _bitfields |= DIRECTIO;
+            set
+            {
+                if (value)
+                    _bitfields |= DIRECTIO;
+                else
+                    _bitfields &= ~DIRECTIO;
+            }
         }
 
         public bool keep_cache
         {
             get => (_bitfields & KEEPCACHE) != 0;
-            set => _bitfields |= KEEPCACHE;
+            set
+            {
+                if (value)
+                    _bitfields |= KEEPCACHE;
+                else
+                    _bitfields &= ~KEEPCACHE;
+            }
         }
 
         private const int WRITEPAGE = 1;
@@ -209,34 +227,34 @@ namespace Tmds.Fuse
     {
         int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi);
         int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi);
-        int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
-        void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
+        int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
+        void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         int Rename(ReadOnlySpan<byte> path, ReadOnlySpan<byte> newPath, int flags);
-        int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi);
-        int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi);
+        int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi);
+        int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi);
         int SymLink(ReadOnlySpan<byte> path, ReadOnlySpan<byte> target);
         int RmDir(ReadOnlySpan<byte> path);
         int Unlink(ReadOnlySpan<byte> path);
         int MkDir(ReadOnlySpan<byte> path, uint mode);
-        int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi);
+        int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi);
         int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer);
         int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi);
-        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, FuseFileInfoRef fi);
+        int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, ref FuseFileInfo fi);
         int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs);
         int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi);
         int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
         int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi);
-        int Flush(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
-        int FSync(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
+        int Flush(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
+        int FSync(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         int SetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, ReadOnlySpan<byte> data, int flags);
         int GetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, Span<byte> data);
         int ListXAttr(ReadOnlySpan<byte> path, Span<byte> list);
         int RemoveXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name);
-        int OpenDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
-        int ReleaseDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi);
-        int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, FuseFileInfoRef fuseFileInfoRef);
+        int OpenDir(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
+        int ReleaseDir(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
+        int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, ref FuseFileInfo fi);
         int Access(ReadOnlySpan<byte> path, uint mode);
-        int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, FuseFileInfoRef fuseFileInfoRef);
+        int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, ref FuseFileInfo fi);
     }
 
     public class FuseFileSystemBase : IFuseFileSystem
@@ -250,22 +268,22 @@ namespace Tmds.Fuse
         public virtual int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Create(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
+        public virtual int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual void Dispose()
         { }
 
-        public virtual int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, FuseFileInfoRef fuseFileInfoRef)
+        public virtual int FAllocate(ReadOnlySpan<byte> path, int mode, ulong offset, long length, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Flush(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int Flush(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int FSync(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int FSync(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, FuseFileInfoRef fuseFileInfoRef)
+        public virtual int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
@@ -283,25 +301,25 @@ namespace Tmds.Fuse
         public virtual int MkDir(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;
 
-        public virtual int Open(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int OpenDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int OpenDir(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => 0;
 
-        public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, FuseFileInfoRef fi)
+        public virtual int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, FuseFileInfoRef fi)
+        public virtual int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer)
             => FuseConstants.ENOSYS;
 
-        public virtual void Release(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
         { }
 
-        public virtual int ReleaseDir(ReadOnlySpan<byte> path, FuseFileInfoRef fi)
+        public virtual int ReleaseDir(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
         public virtual int RemoveXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name)
@@ -330,7 +348,7 @@ namespace Tmds.Fuse
         public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, FuseFileInfoRef fi)
+        public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
     }
 
