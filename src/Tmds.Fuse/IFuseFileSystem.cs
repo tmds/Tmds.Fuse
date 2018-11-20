@@ -51,7 +51,23 @@ namespace Tmds.Fuse
 
         public bool IsNull => _value.IsEmpty;
 
-        public ref FuseFileInfo Value => ref MemoryMarshal.GetReference(_value);
+        public ref FuseFileInfo Value
+        {
+            get
+            {
+                if (IsNull)
+                {
+                    ThrowNullException();
+                }
+
+                return ref MemoryMarshal.GetReference(_value);
+            }
+        }
+
+        private void ThrowNullException()
+        {
+            throw new NullReferenceException(typeof(FuseFileInfoRef).FullName);
+        }
     }
 
     // This is named FuseFileInfo so it doesn't clash with System.IO.FileInfo

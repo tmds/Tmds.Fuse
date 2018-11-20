@@ -500,7 +500,7 @@ namespace Tmds.Fuse
         {
             if (fi == null)
             {
-                throw new InvalidOperationException($"unexpected: nameof(fi) is null");
+                throw new InvalidOperationException($"unexpected: {nameof(fi)} is null");
             }
             else
             {
