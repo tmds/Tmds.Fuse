@@ -225,8 +225,8 @@ namespace Tmds.Fuse
 
     public interface IFuseFileSystem : IDisposable
     {
-        int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi);
-        int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi);
+        int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef);
+        int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fiRef);
         int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         int Rename(ReadOnlySpan<byte> path, ReadOnlySpan<byte> newPath, int flags);
@@ -238,12 +238,12 @@ namespace Tmds.Fuse
         int MkDir(ReadOnlySpan<byte> path, uint mode);
         int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi);
         int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer);
-        int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi);
+        int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fiRef);
         int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, ref FuseFileInfo fi);
         int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs);
-        int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi);
+        int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fiRef);
         int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
-        int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi);
+        int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fiRef);
         int Flush(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         int FSync(ReadOnlySpan<byte> path, ref FuseFileInfo fi);
         int SetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, ReadOnlySpan<byte> data, int flags);
@@ -262,10 +262,10 @@ namespace Tmds.Fuse
         public virtual int Access(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;
 
-        public virtual int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
+        public virtual int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fiRef)
             => FuseConstants.ENOSYS;
 
-        public virtual int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fi)
+        public virtual int Chown(ReadOnlySpan<byte> path, uint uid, uint gid, FuseFileInfoRef fiRef)
             => FuseConstants.ENOSYS;
 
         public virtual int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi)
@@ -286,7 +286,7 @@ namespace Tmds.Fuse
         public virtual int FSyncDir(ReadOnlySpan<byte> readOnlySpan, bool onlyData, ref FuseFileInfo fi)
             => FuseConstants.ENOSYS;
 
-        public virtual int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
+        public virtual int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
             => FuseConstants.ENOSYS;
 
         public virtual int GetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, Span<byte> data)
@@ -339,13 +339,13 @@ namespace Tmds.Fuse
         public virtual int SymLink(ReadOnlySpan<byte> path, ReadOnlySpan<byte> target)
             => FuseConstants.ENOSYS;
 
-        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi)
+        public virtual int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fiRef)
             => FuseConstants.ENOSYS;
 
         public virtual int Unlink(ReadOnlySpan<byte> path)
             => FuseConstants.ENOSYS;
 
-        public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi)
+        public virtual int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fiRef)
             => FuseConstants.ENOSYS;
 
         public virtual int Write(ReadOnlySpan<byte> path, ulong off, ReadOnlySpan<byte> span, ref FuseFileInfo fi)

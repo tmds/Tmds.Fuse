@@ -10,7 +10,7 @@ namespace Mounter
         private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
         {
             if (path.SequenceEqual(RootPath))
             {

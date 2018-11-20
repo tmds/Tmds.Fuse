@@ -311,7 +311,7 @@ namespace Mounter
             nestedDir.AddFile("file4", "Content of file4", defaultFileMode);
         }
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fi)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
         {
             Entry entry = _root.FindEntry(path);
             if (entry == null)
@@ -344,11 +344,11 @@ namespace Mounter
         public override void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
             => _openFiles.Remove(fi.fh);
 
-        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fi)
+        public override int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fiRef)
         {
-            if (fi.Value.fh != 0)
+            if (!fiRef.IsNull)
             {
-                _openFiles[fi.Value.fh].Truncate(length);
+                _openFiles[fiRef.Value.fh].Truncate(length);
                 return 0;
             }
             else
@@ -370,11 +370,11 @@ namespace Mounter
             }
         }
 
-        public override int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fi)
+        public override int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fiRef)
         {
-            if (!fi.IsNull && fi.Value.fh != 0)
+            if (!fiRef.IsNull)
             {
-                _openFiles[fi.Value.fh].Mode = mode;
+                _openFiles[fiRef.Value.fh].Mode = mode;
                 return 0;
             }
             else
@@ -557,12 +557,12 @@ namespace Mounter
             return 0;
         }
 
-        public override int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fi)
+        public override int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fiRef)
         {
             Entry entry;
-            if (!fi.IsNull && fi.Value.fh != 0)
+            if (!fiRef.IsNull)
             {
-                entry = _openFiles[fi.Value.fh].Entry;
+                entry = _openFiles[fiRef.Value.fh].Entry;
             }
             else
             {
