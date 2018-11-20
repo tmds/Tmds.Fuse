@@ -24,6 +24,9 @@ namespace Tmds.Fuse
         public delegate int fuse_opt_add_arg_Delegate(fuse_args* args, string arg);
         public static readonly fuse_opt_add_arg_Delegate fuse_opt_add_arg;
 
+        public delegate int fuse_loop_mt_delegate(fuse* f, int clone_fd);
+        public static readonly fuse_loop_mt_delegate fuse_loop_mt;
+
         static LibFuse()
         {
             s_libFuseHandle = dlopen(LibraryName, 2);
@@ -36,6 +39,7 @@ namespace Tmds.Fuse
             fuse_loop = CreateDelegate<fuse_loop_Delegate>("fuse_loop");
             fuse_mount = CreateDelegate<fuse_mount_Delegate>("fuse_mount");
             fuse_opt_add_arg = CreateDelegate<fuse_opt_add_arg_Delegate>("fuse_opt_add_arg");
+            fuse_loop_mt = CreateDelegate<fuse_loop_mt_delegate>("fuse_loop_mt");
         }
 
         private static T CreateDelegate<T>(string name, string version = "FUSE_3.0")
