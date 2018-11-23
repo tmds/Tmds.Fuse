@@ -592,6 +592,7 @@ namespace Tmds.Fuse
                 int rv = LibFuse.fuse_mount(fuse, _mountPoint);
                 if (rv != 0)
                 {
+                    LibFuse.fuse_destroy(fuse);
                     throw CreateException(nameof(LibFuse.fuse_mount), rv);
                 }
                 _fuseLoopTask = Task.Factory.StartNew(() =>
@@ -624,10 +625,10 @@ namespace Tmds.Fuse
                     {
                         lock (_gate)
                         {
+                            LibFuse.fuse_unmount(fuse);
+                            LibFuse.fuse_destroy(fuse);
                             if (_mounted)
                             {
-                                LibFuse.fuse_unmount(fuse);
-                                LibFuse.fuse_destroy(fuse);
                                 _mounted = false;
                                 _fileSystem.Dispose();
                             }
