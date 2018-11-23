@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using static Tmds.Fuse.FuseConstants;
 
 namespace Tmds.Fuse
@@ -22,7 +23,13 @@ namespace Tmds.Fuse
         public bool SingleThread { get; set; } = false;
     }
 
-    class FuseMount : IDisposable
+    public interface IFuseMount : IDisposable
+    {
+        Task WaitForUnmountAsync();
+        void LazyUnmount();
+    }
+
+    class FuseMount : IFuseMount
     {
         private readonly string _mountPoint;
         private readonly MountOptions _mountOptions;
@@ -57,6 +64,11 @@ namespace Tmds.Fuse
         private readonly fsyncdir_delegate _fsyncdir;
         private readonly access_delegate _access;
         private readonly fallocate_delegate _fallocate;
+        private readonly init_delegate _init;
+        private Task _fuseLoopTask;
+        private readonly object _gate = new object();
+        private bool _mounted;
+        private readonly TaskCompletionSource<object> _mountTaskCompletion = new TaskCompletionSource<object>();
 
         private unsafe class ManagedFiller
         {
@@ -107,6 +119,12 @@ namespace Tmds.Fuse
             _fsyncdir = Fsyncdir;
             _access = Access;
             _fallocate = Fallocate;
+            _init = Init;
+        }
+
+        private void Init(IntPtr ptr, IntPtr ptr2)
+        {
+            _mountTaskCompletion.TrySetResult(null);
         }
 
         private unsafe int Fallocate(path* path, int mode, ulong offset, ulong length, fuse_file_info* fi)
@@ -526,76 +544,138 @@ namespace Tmds.Fuse
 
         public unsafe void Mount()
         {
-            if (!LibFuse.IsAvailable)
+            try
             {
-                throw new FuseException($"libfuse({LibFuse.LibraryName}) is not available on this system.");
-            }
-            // TODO: delete args
-            fuse_args args;
-            LibFuse.fuse_opt_add_arg(&args, "");
+                if (!LibFuse.IsAvailable)
+                {
+                    throw new FuseException($"libfuse({LibFuse.LibraryName}) is not available on this system.");
+                }
 
-            fuse_operations ops;
-            ops.getattr = Marshal.GetFunctionPointerForDelegate(_getattr);
-            ops.readdir = Marshal.GetFunctionPointerForDelegate(_readdir);
-            ops.open = Marshal.GetFunctionPointerForDelegate(_open);
-            ops.read = Marshal.GetFunctionPointerForDelegate(_read);
-            ops.release = Marshal.GetFunctionPointerForDelegate(_release);
-            ops.write = Marshal.GetFunctionPointerForDelegate(_write);
-            ops.unlink = Marshal.GetFunctionPointerForDelegate(_unlink);
-            ops.truncate = Marshal.GetFunctionPointerForDelegate(_truncate);
-            ops.rmdir = Marshal.GetFunctionPointerForDelegate(_rmdir);
-            ops.mkdir = Marshal.GetFunctionPointerForDelegate(_mkdir);
-            ops.create = Marshal.GetFunctionPointerForDelegate(_create);
-            ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
-            ops.link = Marshal.GetFunctionPointerForDelegate(_link);
-            ops.utimens = Marshal.GetFunctionPointerForDelegate(_utimens);
-            ops.readlink = Marshal.GetFunctionPointerForDelegate(_readlink);
-            ops.symlink = Marshal.GetFunctionPointerForDelegate(_symlink);
-            ops.rename = Marshal.GetFunctionPointerForDelegate(_rename);
-            ops.chown = Marshal.GetFunctionPointerForDelegate(_chown);
-            ops.statfs = Marshal.GetFunctionPointerForDelegate(_statfs);
-            ops.flush = Marshal.GetFunctionPointerForDelegate(_flush);
-            ops.fsync = Marshal.GetFunctionPointerForDelegate(_fsync);
-            ops.setxattr = Marshal.GetFunctionPointerForDelegate(_setxattr);
-            ops.getxattr = Marshal.GetFunctionPointerForDelegate(_getxattr);
-            ops.listxattr = Marshal.GetFunctionPointerForDelegate(_listxattr);
-            ops.removexattr = Marshal.GetFunctionPointerForDelegate(_removexattr);
-            ops.opendir = Marshal.GetFunctionPointerForDelegate(_opendir);
-            ops.releasedir = Marshal.GetFunctionPointerForDelegate(_releasedir);
-            ops.fsyncdir = Marshal.GetFunctionPointerForDelegate(_fsyncdir);
-            ops.access = Marshal.GetFunctionPointerForDelegate(_access);
-            ops.fallocate = Marshal.GetFunctionPointerForDelegate(_fallocate);
+                fuse_args args;
+                LibFuse.fuse_opt_add_arg(&args, "");
 
-            // TODO: cleanup/unmount
-            var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);
-            int rv = LibFuse.fuse_mount(fuse, _mountPoint);
-            if (rv != 0)
-            {
-                ThrowException(nameof(LibFuse.fuse_mount), rv);
+                fuse_operations ops;
+                ops.getattr = Marshal.GetFunctionPointerForDelegate(_getattr);
+                ops.readdir = Marshal.GetFunctionPointerForDelegate(_readdir);
+                ops.open = Marshal.GetFunctionPointerForDelegate(_open);
+                ops.read = Marshal.GetFunctionPointerForDelegate(_read);
+                ops.release = Marshal.GetFunctionPointerForDelegate(_release);
+                ops.write = Marshal.GetFunctionPointerForDelegate(_write);
+                ops.unlink = Marshal.GetFunctionPointerForDelegate(_unlink);
+                ops.truncate = Marshal.GetFunctionPointerForDelegate(_truncate);
+                ops.rmdir = Marshal.GetFunctionPointerForDelegate(_rmdir);
+                ops.mkdir = Marshal.GetFunctionPointerForDelegate(_mkdir);
+                ops.create = Marshal.GetFunctionPointerForDelegate(_create);
+                ops.chmod = Marshal.GetFunctionPointerForDelegate(_chmod);
+                ops.link = Marshal.GetFunctionPointerForDelegate(_link);
+                ops.utimens = Marshal.GetFunctionPointerForDelegate(_utimens);
+                ops.readlink = Marshal.GetFunctionPointerForDelegate(_readlink);
+                ops.symlink = Marshal.GetFunctionPointerForDelegate(_symlink);
+                ops.rename = Marshal.GetFunctionPointerForDelegate(_rename);
+                ops.chown = Marshal.GetFunctionPointerForDelegate(_chown);
+                ops.statfs = Marshal.GetFunctionPointerForDelegate(_statfs);
+                ops.flush = Marshal.GetFunctionPointerForDelegate(_flush);
+                ops.fsync = Marshal.GetFunctionPointerForDelegate(_fsync);
+                ops.setxattr = Marshal.GetFunctionPointerForDelegate(_setxattr);
+                ops.getxattr = Marshal.GetFunctionPointerForDelegate(_getxattr);
+                ops.listxattr = Marshal.GetFunctionPointerForDelegate(_listxattr);
+                ops.removexattr = Marshal.GetFunctionPointerForDelegate(_removexattr);
+                ops.opendir = Marshal.GetFunctionPointerForDelegate(_opendir);
+                ops.releasedir = Marshal.GetFunctionPointerForDelegate(_releasedir);
+                ops.fsyncdir = Marshal.GetFunctionPointerForDelegate(_fsyncdir);
+                ops.access = Marshal.GetFunctionPointerForDelegate(_access);
+                ops.fallocate = Marshal.GetFunctionPointerForDelegate(_fallocate);
+                ops.init = Marshal.GetFunctionPointerForDelegate(_init);
+
+                var fuse = LibFuse.fuse_new(&args, &ops, (UIntPtr)sizeof(fuse_operations), null);
+                LibFuse.fuse_opt_free_args(&args);
+                int rv = LibFuse.fuse_mount(fuse, _mountPoint);
+                if (rv != 0)
+                {
+                    throw CreateException(nameof(LibFuse.fuse_mount), rv);
+                }
+                _fuseLoopTask = Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        bool singleThread = !_fileSystem.SupportsMultiThreading || _mountOptions.SingleThread;
+                        if (singleThread)
+                        {
+                            rv = LibFuse.fuse_loop(fuse);
+                        }
+                        else
+                        {
+                            rv = LibFuse.fuse_loop_mt(fuse, clone_fd: 0);
+                        }
+                        if (rv == 0)
+                        {
+                            _mountTaskCompletion.TrySetResult(null);
+                        }
+                        else
+                        {
+                            _mountTaskCompletion.TrySetException(CreateException(nameof(LibFuse.fuse_loop), rv));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        _mountTaskCompletion.TrySetException(e);
+                    }
+                    finally
+                    {
+                        lock (_gate)
+                        {
+                            if (_mounted)
+                            {
+                                LibFuse.fuse_unmount(fuse);
+                                LibFuse.fuse_destroy(fuse);
+                                _mounted = false;
+                                _fileSystem.Dispose();
+                            }
+                        }
+                    }
+                }
+                , TaskCreationOptions.LongRunning);
+
+                _mountTaskCompletion.Task.GetAwaiter().GetResult();
+                _mounted = true;
             }
-            bool singleThread = !_fileSystem.SupportsMultiThreading || _mountOptions.SingleThread;
-            if (singleThread)
+            finally
             {
-                rv = LibFuse.fuse_loop(fuse);
-            }
-            else
-            {
-                rv = LibFuse.fuse_loop_mt(fuse, clone_fd: 0);
-            }
-            if (rv != 0)
-            {
-                ThrowException(nameof(LibFuse.fuse_loop), rv);
+                lock (_gate)
+                {
+                    if (!_mounted)
+                    {
+                        _fileSystem.Dispose();
+                    }
+                }
             }
         }
 
-        private void ThrowException(string operation, int returnValue)
+        private Exception CreateException(string operation, int returnValue)
         {
-            throw new FuseException($"Failed to {operation}, the function returned {returnValue}.");
+            return new FuseException($"Failed to {operation}, the function returned {returnValue}.");
+        }
+
+        public Task WaitForUnmountAsync()
+            => _fuseLoopTask;
+
+        public unsafe void LazyUnmount()
+        {
+            lock (_gate)
+            {
+                if (_mounted)
+                {
+                    Fuse.LazyUnmount(_mountPoint);
+
+                    // Give fuse a kick in order to help unblock the loop
+                    File.GetLastAccessTime(_mountPoint);
+                }
+            }
         }
 
         public void Dispose()
         {
-            _fileSystem.Dispose();
+            LazyUnmount();
         }
     }
 }
