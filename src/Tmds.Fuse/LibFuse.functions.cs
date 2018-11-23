@@ -23,7 +23,7 @@ namespace Tmds.Fuse
 
         public delegate int fuse_opt_add_arg_Delegate(fuse_args* args, string arg);
         public static readonly fuse_opt_add_arg_Delegate fuse_opt_add_arg;
-        // fuse_opt_free_args
+
         public delegate void fuse_opt_free_args_Delegate(fuse_args* args);
         public static readonly fuse_opt_free_args_Delegate fuse_opt_free_args;
 
@@ -32,6 +32,7 @@ namespace Tmds.Fuse
 
         public delegate void fuse_unmount_delegate(fuse* f);
         public static readonly fuse_unmount_delegate fuse_unmount;
+
         public delegate void fuse_destroy_delegate(fuse* f);
         public static readonly fuse_destroy_delegate fuse_destroy;
 
