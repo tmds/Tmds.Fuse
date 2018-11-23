@@ -25,7 +25,7 @@ namespace Tmds.Fuse
 
     public interface IFuseMount : IDisposable
     {
-        Task WaitForUnmountAsync();
+        Task WaitForUnmountAsync(); // TODO: add timeout
         void LazyUnmount();
     }
 
