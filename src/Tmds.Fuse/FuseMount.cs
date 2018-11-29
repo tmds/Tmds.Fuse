@@ -7,29 +7,6 @@ using static Tmds.Fuse.FuseConstants;
 
 namespace Tmds.Fuse
 {
-    [System.Serializable]
-    public class FuseException : System.Exception
-    {
-        public FuseException() { }
-        public FuseException(string message) : base(message) { }
-        public FuseException(string message, System.Exception inner) : base(message, inner) { }
-        protected FuseException(
-            System.Runtime.Serialization.SerializationInfo info,
-            System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
-    }
-
-    public class MountOptions
-    {
-        public bool SingleThread { get; set; } = false;
-    }
-
-    public interface IFuseMount : IDisposable
-    {
-        Task WaitForUnmountAsync();
-        void LazyUnmount();
-        Task<bool> UnmountAsync(int timeout = -1);
-    }
-
     class FuseMount : IFuseMount
     {
         private readonly string _mountPoint;
