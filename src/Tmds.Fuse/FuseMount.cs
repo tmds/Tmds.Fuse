@@ -25,8 +25,9 @@ namespace Tmds.Fuse
 
     public interface IFuseMount : IDisposable
     {
-        Task WaitForUnmountAsync(); // TODO: add timeout
+        Task WaitForUnmountAsync();
         void LazyUnmount();
+        Task<bool> UnmountAsync(int timeout = -1);
     }
 
     class FuseMount : IFuseMount
@@ -675,6 +676,25 @@ namespace Tmds.Fuse
                     File.GetLastAccessTime(_mountPoint);
                 }
             }
+        }
+
+        public async Task<bool> UnmountAsync(int millisecondsTimeout)
+        {
+            LazyUnmount();
+            if (_fuseLoopTask.IsCompleted)
+            {
+                return true;
+            }
+            if (millisecondsTimeout < 0)
+            {
+                await _fuseLoopTask;
+                return true;
+            }
+            else if (millisecondsTimeout > 0)
+            {
+                await Task.WhenAny(_fuseLoopTask, Task.Delay(millisecondsTimeout));
+            }
+            return _fuseLoopTask.IsCompleted;
         }
 
         public void Dispose()
