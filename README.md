@@ -109,8 +109,10 @@ static async Task Main(string[] args)
         Console.WriteLine(Fuse.InstallationInstructions);
         return;
     }
-    var mount = Fuse.Mount("/tmp/mountpoint", new HelloFileSystem());
-    await mount.WaitForUnmountAsync();
+    using (var mount = Fuse.Mount("/tmp/mountpoint", new HelloFileSystem()))
+    {
+        await mount.WaitForUnmountAsync();
+    }
 }
 ```
 
