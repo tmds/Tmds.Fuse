@@ -277,7 +277,7 @@ namespace Tmds.Fuse
 
     public class FuseFileSystemBase : IFuseFileSystem
     {
-        public bool SupportsMultiThreading => false;
+        public virtual bool SupportsMultiThreading => false;
 
         public virtual int Access(ReadOnlySpan<byte> path, uint mode)
             => FuseConstants.ENOSYS;

@@ -57,7 +57,7 @@ namespace Tmds.Fuse
     unsafe delegate int fsyncdir_delegate(path* path, int datasync, fuse_file_info* fi);
     unsafe delegate int access_delegate(path* path, uint mode);
     unsafe delegate int fallocate_delegate(path* path, int mode, ulong off, ulong length, fuse_file_info* fi);
-
+    unsafe delegate void init_delegate(IntPtr ptr, IntPtr ptr2);
     /**
     * The file system operations:
     *
@@ -383,7 +383,7 @@ namespace Tmds.Fuse
         */
         // void *(*init) (struct fuse_conn_info *conn,
         //         struct fuse_config *cfg);
-        IntPtr init;
+        public IntPtr init;
 
         /**
         * Clean up filesystem

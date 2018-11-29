@@ -24,8 +24,17 @@ namespace Tmds.Fuse
         public delegate int fuse_opt_add_arg_Delegate(fuse_args* args, string arg);
         public static readonly fuse_opt_add_arg_Delegate fuse_opt_add_arg;
 
+        public delegate void fuse_opt_free_args_Delegate(fuse_args* args);
+        public static readonly fuse_opt_free_args_Delegate fuse_opt_free_args;
+
         public delegate int fuse_loop_mt_delegate(fuse* f, int clone_fd);
         public static readonly fuse_loop_mt_delegate fuse_loop_mt;
+
+        public delegate void fuse_unmount_delegate(fuse* f);
+        public static readonly fuse_unmount_delegate fuse_unmount;
+
+        public delegate void fuse_destroy_delegate(fuse* f);
+        public static readonly fuse_destroy_delegate fuse_destroy;
 
         static LibFuse()
         {
@@ -40,6 +49,9 @@ namespace Tmds.Fuse
             fuse_mount = CreateDelegate<fuse_mount_Delegate>("fuse_mount");
             fuse_opt_add_arg = CreateDelegate<fuse_opt_add_arg_Delegate>("fuse_opt_add_arg");
             fuse_loop_mt = CreateDelegate<fuse_loop_mt_delegate>("fuse_loop_mt");
+            fuse_unmount = CreateDelegate<fuse_unmount_delegate>("fuse_unmount");
+            fuse_destroy = CreateDelegate<fuse_destroy_delegate>("fuse_destroy");
+            fuse_opt_free_args = CreateDelegate<fuse_opt_free_args_Delegate>("fuse_opt_free_args");
         }
 
         private static T CreateDelegate<T>(string name, string version = "FUSE_3.0")

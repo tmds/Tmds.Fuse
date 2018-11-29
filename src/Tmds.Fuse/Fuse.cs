@@ -8,16 +8,16 @@ namespace Tmds.Fuse
     {
         internal const string Fusermount = "fusermount3";
 
-        public static void Mount(string mountPoint, IFuseFileSystem fileSystem, MountOptions options = null)
+        public static IFuseMount Mount(string mountPoint, IFuseFileSystem fileSystem, MountOptions options = null)
         {
             if (options == null)
             {
                 options = new MountOptions();
             }
-            using (FuseMount mount = new FuseMount(mountPoint, fileSystem, options))
-            {
-                mount.Mount();
-            }
+
+            FuseMount mount = new FuseMount(mountPoint, fileSystem, options);
+            mount.Mount();
+            return mount;
         }
 
         public static bool CheckDependencies()
@@ -34,14 +34,14 @@ namespace Tmds.Fuse
             }
         }
 
-        public static void TryUnmount(string mountPoint)
+        public static void LazyUnmount(string mountPoint)
         {
             // we need root to unmount
             // fusermount runs as root (setuid)
             var psi = new ProcessStartInfo
             {
                 FileName = Fusermount,
-                Arguments = $"-u {mountPoint}",
+                Arguments = $"-u -q -z {mountPoint}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
