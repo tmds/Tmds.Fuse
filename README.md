@@ -102,14 +102,15 @@ class HelloFileSystem : FuseFileSystemBase
 Implement the `Main` method:
 
 ```C#
-static void Main(string[] args)
+static async Task Main(string[] args)
 {
     if (!Fuse.CheckDependencies())
     {
         Console.WriteLine(Fuse.InstallationInstructions);
         return;
     }
-    Fuse.Mount("/tmp/mountpoint", new HelloFileSystem());
+    var mount = Fuse.Mount("/tmp/mountpoint", new HelloFileSystem());
+    await mount.WaitForUnmountAsync();
 }
 ```
 
