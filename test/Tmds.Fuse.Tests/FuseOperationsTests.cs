@@ -4,7 +4,8 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
-using static Tmds.Fuse.FuseConstants;
+using static Tmds.Linux.LibC;
+using Tmds.Linux;
 
 namespace Tmds.Fuse.Tests
 {
@@ -12,13 +13,13 @@ namespace Tmds.Fuse.Tests
     {
         class FileSystem : FuseFileSystemBase
         {
-            public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+            public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
             {
                 if (path.SequenceEqual(Encoding.UTF8.GetBytes("/GetAttr_file1")))
                 {
-                    stat.st_atim = new DateTime(2000, 12, 1, 23, 13, 59, 200, DateTimeKind.Utc);
-                    stat.st_mtim = new DateTime(2001, 11, 2, 22, 12, 58, 199, DateTimeKind.Utc);
-                    stat.st_ctim = new DateTime(2002, 10, 3, 21, 11, 57, 198, DateTimeKind.Utc);
+                    stat.st_atim = new DateTime(2000, 12, 1, 23, 13, 59, 200, DateTimeKind.Utc).ToTimespec();
+                    stat.st_mtim = new DateTime(2001, 11, 2, 22, 12, 58, 199, DateTimeKind.Utc).ToTimespec();
+                    stat.st_ctim = new DateTime(2002, 10, 3, 21, 11, 57, 198, DateTimeKind.Utc).ToTimespec();
                     stat.st_nlink = 10;
                     stat.st_uid = 13;
                     stat.st_gid = 15;
@@ -31,7 +32,7 @@ namespace Tmds.Fuse.Tests
                     stat.st_mode = S_IFDIR | 0b100_010_001;
                     return 0;
                 }
-                return ENOENT;
+                return -ENOENT;
             }
         }
 

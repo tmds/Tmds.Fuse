@@ -6,7 +6,8 @@ using System.Linq;
 using System.Text;
 using Microsoft.IO;
 using Tmds.Fuse;
-using static Tmds.Fuse.FuseConstants;
+using Tmds.Linux;
+using static Tmds.Linux.LibC;
 
 namespace Mounter
 {
@@ -48,7 +49,7 @@ namespace Mounter
             private uint _refCount;
 
             public uint RefCount => _refCount;
-            public uint Mode { get; set; }
+            public mode_t Mode { get; set; }
             public DateTime ATime { get; set; }
             public DateTime MTime { get; set; }
 
@@ -88,7 +89,7 @@ namespace Mounter
         {
             private readonly Stream _content;
 
-            public File(Stream content, uint mode)
+            public File(Stream content, mode_t mode)
             {
                 _content = content;
                 Mode = mode;
@@ -111,7 +112,7 @@ namespace Mounter
                 // Do we support this size?
                 if (length > int.MaxValue)
                 {
-                    return EINVAL;
+                    return -EINVAL;
                 }
 
                 _content.SetLength((long)length);
@@ -125,7 +126,7 @@ namespace Mounter
                 ulong newLength = offset + (ulong)buffer.Length;
                 if (newLength > int.MaxValue || offset > int.MaxValue)
                 {
-                    return EFBIG;
+                    return -EFBIG;
                 }
 
                 // Copy the data
@@ -144,7 +145,7 @@ namespace Mounter
         {
             public Dictionary<EntryName, Entry> Entries { get; } = new Dictionary<EntryName, Entry>();
 
-            public Directory(uint mode)
+            public Directory(mode_t mode)
             {
                 Mode = mode;
             }
@@ -184,10 +185,10 @@ namespace Mounter
                 }
             }
 
-            public Directory AddDirectory(string name, uint mode)
+            public Directory AddDirectory(string name, mode_t mode)
                 => AddDirectory(Encoding.UTF8.GetBytes(name), mode);
 
-            public Directory AddDirectory(ReadOnlySpan<byte> name, uint mode)
+            public Directory AddDirectory(ReadOnlySpan<byte> name, mode_t mode)
             {
                 Directory directory = null;
                 try
@@ -203,10 +204,10 @@ namespace Mounter
                 }
             }
 
-            public File AddFile(string name, string content, uint mode)
+            public File AddFile(string name, string content, mode_t mode)
                 => AddFile(Encoding.UTF8.GetBytes(name), Encoding.UTF8.GetBytes(content), mode);
 
-            public File AddFile(ReadOnlySpan<byte> name, byte[] content, uint mode)
+            public File AddFile(ReadOnlySpan<byte> name, byte[] content, mode_t mode)
             {
                 File file = null;
                 try
@@ -260,7 +261,7 @@ namespace Mounter
 
         class RootDirectory : Directory, IDisposable
         {
-            public RootDirectory(uint mode) :
+            public RootDirectory(mode_t mode) :
                 base(mode)
             {}
 
@@ -275,11 +276,12 @@ namespace Mounter
             public OpenFile(File file)
                 => _file = file;
 
-            public uint Mode
+            public mode_t Mode
             {
                 get => _file.Mode;
                 set => _file.Mode = value;
             }
+
             public Entry Entry => _file;
 
             public int Read(ulong offset, Span<byte> buffer)
@@ -311,15 +313,15 @@ namespace Mounter
             nestedDir.AddFile("file4", "Content of file4", defaultFileMode);
         }
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
         {
             Entry entry = _root.FindEntry(path);
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
-            stat.st_atim = entry.ATime;
-            stat.st_mtim = entry.MTime;
+            stat.st_atim = entry.ATime.ToTimespec();
+            stat.st_mtim = entry.MTime.ToTimespec();
             stat.st_nlink = entry.RefCount;
             switch (entry)
             {
@@ -356,7 +358,7 @@ namespace Mounter
                 Entry entry = _root.FindEntry(path);
                 if (entry == null)
                 {
-                    return ENOENT;
+                    return -ENOENT;
                 }
                 if (entry is File file)
                 {
@@ -365,12 +367,12 @@ namespace Mounter
                 }
                 else
                 {
-                    return EISDIR;
+                    return -EISDIR;
                 }
             }
         }
 
-        public override int ChMod(ReadOnlySpan<byte> path, uint mode, FuseFileInfoRef fiRef)
+        public override int ChMod(ReadOnlySpan<byte> path, mode_t mode, FuseFileInfoRef fiRef)
         {
             if (!fiRef.IsNull)
             {
@@ -382,23 +384,23 @@ namespace Mounter
                 Entry entry = _root.FindEntry(path);
                 if (entry == null)
                 {
-                    return ENOENT;
+                    return -ENOENT;
                 }
                 entry.Mode = mode;
                 return 0;
             }
         }
 
-        public override int MkDir(ReadOnlySpan<byte> path, uint mode)
+        public override int MkDir(ReadOnlySpan<byte> path, mode_t mode)
         {
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
             if (entry != null)
             {
-                return EEXIST;
+                return -EEXIST;
             }
 
             parent.AddDirectory(name, mode);
@@ -411,7 +413,7 @@ namespace Mounter
             Entry entry = _root.FindEntry(path);
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
             if (entry is Directory directory)
             {
@@ -425,20 +427,20 @@ namespace Mounter
             }
             else
             {
-                return ENOTDIR;
+                return -ENOTDIR;
             }
         }
 
-        public override int Create(ReadOnlySpan<byte> path, uint mode, ref FuseFileInfo fi)
+        public override int Create(ReadOnlySpan<byte> path, mode_t mode, ref FuseFileInfo fi)
         {
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
             if (entry != null)
             {
-                return EEXIST;
+                return -EEXIST;
             }
 
             File newFile = parent.AddFile(name, Array.Empty<byte>(), mode);
@@ -451,18 +453,18 @@ namespace Mounter
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
 
             if (entry is Directory dir)
             {
                 if (dir.Entries.Count != 0)
                 {
-                    return ENOTEMPTY;
+                    return -ENOTEMPTY;
                 }
 
                 parent.Remove(name);
@@ -470,7 +472,7 @@ namespace Mounter
             }
             else
             {
-                return ENOTDIR;
+                return -ENOTDIR;
             }
         }
 
@@ -479,12 +481,12 @@ namespace Mounter
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
 
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
             if (entry is File file)
             {
@@ -497,7 +499,7 @@ namespace Mounter
             }
             else
             {
-                return EISDIR;
+                return -EISDIR;
             }
         }
 
@@ -519,11 +521,11 @@ namespace Mounter
             (Directory parent, bool parentIsNotDir, Entry entry) = FindParentAndEntry(path, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
 
             if (entry is File file)
@@ -533,7 +535,7 @@ namespace Mounter
             }
             else
             {
-                return EISDIR;
+                return -EISDIR;
             }
         }
 
@@ -542,22 +544,22 @@ namespace Mounter
             Entry from = _root.FindEntry(fromPath);
             if (from == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
             (Directory parent, bool parentIsNotDir, Entry to) = FindParentAndEntry(toPath, out ReadOnlySpan<byte> name);
             if (parent == null)
             {
-                return parentIsNotDir ? ENOTDIR : ENOENT;
+                return parentIsNotDir ? -ENOTDIR : -ENOENT;
             }
             if (to != null)
             {
-                return EEXIST;
+                return -EEXIST;
             }
             parent.AddEntry(name, from);
             return 0;
         }
 
-        public override int UpdateTimestamps(ReadOnlySpan<byte> path, ref TimeSpec atime, ref TimeSpec mtime, FuseFileInfoRef fiRef)
+        public override int UpdateTimestamps(ReadOnlySpan<byte> path, ref timespec atime, ref timespec mtime, FuseFileInfoRef fiRef)
         {
             Entry entry;
             if (!fiRef.IsNull)
@@ -570,16 +572,16 @@ namespace Mounter
             }
             if (entry == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
-            DateTime now = atime.IsNow || mtime.IsNow ? DateTime.Now : DateTime.MinValue;
-            if (!atime.IsOmit)
+            DateTime now = atime.IsNow() || mtime.IsNow() ? DateTime.Now : DateTime.MinValue;
+            if (!atime.IsOmit())
             {
-                entry.ATime = atime.IsNow ? now : atime.ToDateTime();
+                entry.ATime = atime.IsNow() ? now : atime.ToDateTime();
             }
-            if (!mtime.IsOmit)
+            if (!mtime.IsOmit())
             {
-                entry.MTime = mtime.IsNow ? now : mtime.ToDateTime();
+                entry.MTime = mtime.IsNow() ? now : mtime.ToDateTime();
             }
             return 0;
         }

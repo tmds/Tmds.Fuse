@@ -30,16 +30,16 @@ Implement a simple file system:
 using System;
 using System.Text;
 using Tmds.Fuse;
-using static Tmds.Fuse.FuseConstants;
+using static Tmds.Linux.LibC;
 
 class HelloFileSystem : FuseFileSystemBase
 {
     private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
     private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
-    public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+    public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
     {
-        if (path.SequenceEqual(RootPath))
+        if (path.SequenceEqual(FuseConstants.RootPath))
         {
             stat.st_mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
             stat.st_nlink = 2; // 2 + nr of subdirectories
@@ -54,7 +54,7 @@ class HelloFileSystem : FuseFileSystemBase
         }
         else
         {
-            return ENOENT;
+            return -ENOENT;
         }
     }
 
@@ -62,12 +62,12 @@ class HelloFileSystem : FuseFileSystemBase
     {
         if (!path.SequenceEqual(_helloFilePath))
         {
-            return ENOENT;
+            return -ENOENT;
         }
 
         if ((fi.flags & O_ACCMODE) != O_RDONLY)
         {
-            return EACCES;
+            return -EACCES;
         }
 
         return 0;
@@ -87,9 +87,9 @@ class HelloFileSystem : FuseFileSystemBase
 
     public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
     {
-        if (!path.SequenceEqual(RootPath))
+        if (!path.SequenceEqual(FuseConstants.RootPath))
         {
-            return ENOENT;
+            return -ENOENT;
         }
         content.AddEntry(".");
         content.AddEntry("..");
