@@ -15,7 +15,7 @@ namespace Mounter
 
         public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
         {
-            if (path.SequenceEqual(FuseConstants.RootPath))
+            if (path.SequenceEqual(RootPath))
             {
                 stat.st_mode = S_IFDIR | 0b111_101_101; // rwxr-xr-x
                 stat.st_nlink = 2; // 2 + nr of subdirectories
@@ -63,7 +63,7 @@ namespace Mounter
 
         public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
-            if (!path.SequenceEqual(FuseConstants.RootPath))
+            if (!path.SequenceEqual(RootPath))
             {
                 return -ENOENT;
             }

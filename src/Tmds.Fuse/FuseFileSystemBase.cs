@@ -8,6 +8,9 @@ namespace Tmds.Fuse
 {
     public class FuseFileSystemBase : IFuseFileSystem
     {
+        private static byte[] _rootPath = new byte[] { (byte)'/' };
+        public static ReadOnlySpan<byte> RootPath => _rootPath;
+
         public virtual bool SupportsMultiThreading => false;
 
         public virtual int Access(ReadOnlySpan<byte> path, mode_t mode)
