@@ -392,7 +392,8 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Unlink(ToSpan(path));}
+                return _fileSystem.Unlink(ToSpan(path));
+            }
             catch
             {
                 return -EIO;
@@ -430,7 +431,6 @@ namespace Tmds.Fuse
         {
             try
             {
-                // try to reuse the previous delegate
                 fuse_fill_dir_Delegate fillDelegate;
                 ManagedFiller previousFiller = _previousFiller;
                 if (previousFiller != null && previousFiller.Filler == filler)
@@ -632,7 +632,7 @@ namespace Tmds.Fuse
                             }
                             LibFuse.fuse_opt_free_args(&args);
                         }
-                    } , TaskCreationOptions.LongRunning);
+                    }, TaskCreationOptions.LongRunning);
 
                     _mountTaskCompletion.Task.GetAwaiter().GetResult();
                     _mounted = true;
