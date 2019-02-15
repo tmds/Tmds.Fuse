@@ -1,5 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
+using Tmds.Linux;
 
 namespace Tmds.Fuse
 {
@@ -64,13 +66,25 @@ namespace Tmds.Fuse
             return  Marshal.GetDelegateForFunctionPointer<T>(functionPtr);
         }
 
-        [DllImport("dl")]
-        private static extern IntPtr dlvsym(IntPtr handle, string symbol, string version);
+        private static IntPtr dlvsym(IntPtr libHandle, string name, string version)
+        {
+            byte[] functionName = Encoding.UTF8.GetBytes(name);
+            fixed (byte* pName = functionName)
+            {
+                fixed (byte* pVersion = Encoding.UTF8.GetBytes(version))
+                {
+                    return new IntPtr(LibC.dlvsym(libHandle.ToPointer(), pName, pVersion));
+                }
+            }
+        }
 
-        [DllImport("dl")]
-        private static extern IntPtr dlopen(string filename, int flag);
-
-        [DllImport("dl")]
-        private static extern IntPtr dlerror();
+        private static IntPtr dlopen(string libraryName, int flags)
+        {
+            byte[] libNameBytes = Encoding.UTF8.GetBytes(libraryName);
+            fixed (byte* pName = libNameBytes)
+            {
+                return new IntPtr(LibC.dlopen(pName, flags));
+            }
+        }
     }
 }
