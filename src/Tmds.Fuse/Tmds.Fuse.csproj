@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.5.0" />
-    <PackageReference Include="Tmds.LibC" Version="0.1.0" />
+    <PackageReference Include="Tmds.LibC" Version="0.2.0" />
   </ItemGroup>
 
 </Project>
