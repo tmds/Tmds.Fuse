@@ -24,7 +24,7 @@ namespace Tmds.Fuse
         int ReadLink(ReadOnlySpan<byte> path, Span<byte> buffer);
         int Truncate(ReadOnlySpan<byte> path, ulong length, FuseFileInfoRef fiRef);
         int Write(ReadOnlySpan<byte> path, ulong offset, ReadOnlySpan<byte> buffer, ref FuseFileInfo fi);
-        int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs);
+        int StatFS(ReadOnlySpan<byte> path, ref statvfs statfs);
         int ChMod(ReadOnlySpan<byte> path, mode_t mode, FuseFileInfoRef fiRef);
         int Link(ReadOnlySpan<byte> fromPath, ReadOnlySpan<byte> toPath);
         int UpdateTimestamps(ReadOnlySpan<byte> path, ref timespec atime, ref timespec mtime, FuseFileInfoRef fiRef);

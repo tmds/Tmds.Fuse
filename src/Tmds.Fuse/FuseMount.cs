@@ -242,7 +242,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<StatVFS> span = new Span<StatVFS>(vfs, 1);
+                Span<statvfs> span = new Span<statvfs>(vfs, 1);
                 span.Clear();
                 return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
             }

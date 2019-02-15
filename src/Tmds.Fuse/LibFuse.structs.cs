@@ -10,7 +10,6 @@ namespace Tmds.Fuse
     struct fuse_fill_dir { }
     enum fuse_fill_dir_flags { }
     struct fuse_file_info { }
-    struct statvfs { }
 
     unsafe struct fuse_args
     {

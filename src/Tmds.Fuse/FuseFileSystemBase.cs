@@ -87,7 +87,7 @@ namespace Tmds.Fuse
         public virtual int SetXAttr(ReadOnlySpan<byte> path, ReadOnlySpan<byte> name, ReadOnlySpan<byte> data, int flags)
             => -ENOSYS;
 
-        public virtual int StatFS(ReadOnlySpan<byte> path, ref StatVFS statfs)
+        public virtual int StatFS(ReadOnlySpan<byte> path, ref statvfs statfs)
             => -ENOSYS;
 
         public virtual int SymLink(ReadOnlySpan<byte> path, ReadOnlySpan<byte> target)
