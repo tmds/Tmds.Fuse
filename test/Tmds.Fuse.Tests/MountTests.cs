@@ -3,7 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Xunit;
-using static Tmds.Fuse.FuseConstants;
+using static Tmds.Linux.LibC;
+using Tmds.Linux;
 
 namespace Tmds.Fuse.Tests
 {
@@ -11,7 +12,7 @@ namespace Tmds.Fuse.Tests
     {
         class DummyFileSystem : FuseFileSystemBase
         {
-            public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+            public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
             {
                 stat.st_nlink = 1;
                 stat.st_mode = S_IFREG;

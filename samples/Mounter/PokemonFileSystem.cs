@@ -1,12 +1,13 @@
 using System;
 using System.Net.Http;
 using Tmds.Fuse;
-using static Tmds.Fuse.FuseConstants;
+using static Tmds.Linux.LibC;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Text;
 using System.Collections.Generic;
 using System.Net;
+using Tmds.Linux;
 
 namespace Mounter
 {
@@ -34,7 +35,7 @@ namespace Mounter
 
         public override void Dispose() => _httpClient.Dispose();
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
         {
             if (path.SequenceEqual(RootPath))
             {
@@ -54,7 +55,7 @@ namespace Mounter
         {
             if (!path.SequenceEqual(RootPath))
             {
-                return ENOENT;
+                return -ENOENT;
             }
 
             content.AddEntry(".");
@@ -90,7 +91,7 @@ namespace Mounter
             byte[] data = GetAsBytes(name);
             if (data == null)
             {
-                return ENOENT;
+                return -ENOENT;
             }
 
             ulong fd = FindFreeFd();

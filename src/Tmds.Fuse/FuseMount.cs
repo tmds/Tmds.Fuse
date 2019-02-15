@@ -3,7 +3,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using static Tmds.Fuse.FuseConstants;
+using Tmds.Linux;
+using static Tmds.Linux.LibC;
 
 namespace Tmds.Fuse
 {
@@ -113,11 +114,11 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
-        private unsafe int Access(path* path, uint mode)
+        private unsafe int Access(path* path, mode_t mode)
         {
             try
             {
@@ -125,7 +126,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -137,7 +138,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -149,7 +150,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -161,7 +162,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -173,7 +174,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -185,7 +186,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -197,7 +198,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -209,7 +210,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -221,7 +222,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -233,7 +234,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -241,13 +242,13 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<StatVFS> span = new Span<StatVFS>(vfs, 1);
+                Span<statvfs> span = new Span<statvfs>(vfs, 1);
                 span.Clear();
                 return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -259,7 +260,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -271,7 +272,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -283,7 +284,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -295,7 +296,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -303,7 +304,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<TimeSpec> specs = new Span<TimeSpec>(tv, 2);
+                Span<timespec> specs = new Span<timespec>(tv, 2);
                 return _fileSystem.UpdateTimestamps(ToSpan(path),
                                                     ref MemoryMarshal.GetReference(specs),
                                                     ref MemoryMarshal.GetReference(specs.Slice(1)),
@@ -311,7 +312,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -323,11 +324,11 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
-        private unsafe int Chmod(path* path, uint mode, fuse_file_info* fi)
+        private unsafe int Chmod(path* path, mode_t mode, fuse_file_info* fi)
         {
             try
             {
@@ -335,7 +336,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -347,11 +348,11 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
-        private unsafe int Create(path* path, uint mode, fuse_file_info* fi)
+        private unsafe int Create(path* path, mode_t mode, fuse_file_info* fi)
         {
             try
             {
@@ -359,11 +360,11 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
-        private unsafe int Mkdir(path* path, uint mode)
+        private unsafe int Mkdir(path* path, mode_t mode)
         {
             try
             {
@@ -371,7 +372,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -383,7 +384,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -391,10 +392,11 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Unlink(ToSpan(path));}
+                return _fileSystem.Unlink(ToSpan(path));
+            }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -407,7 +409,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -415,13 +417,13 @@ namespace Tmds.Fuse
         {
             try
             {
-                Span<Stat> span = new Span<Stat>(stat, 1);
+                Span<stat> span = new Span<stat>(stat, 1);
                 span.Clear();
                 return _fileSystem.GetAttr(ToSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -429,7 +431,6 @@ namespace Tmds.Fuse
         {
             try
             {
-                // try to reuse the previous delegate
                 fuse_fill_dir_Delegate fillDelegate;
                 ManagedFiller previousFiller = _previousFiller;
                 if (previousFiller != null && previousFiller.Filler == filler)
@@ -446,7 +447,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -458,7 +459,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -471,7 +472,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -484,7 +485,7 @@ namespace Tmds.Fuse
             }
             catch
             {
-                return EIO;
+                return -EIO;
             }
         }
 
@@ -631,7 +632,7 @@ namespace Tmds.Fuse
                             }
                             LibFuse.fuse_opt_free_args(&args);
                         }
-                    } , TaskCreationOptions.LongRunning);
+                    }, TaskCreationOptions.LongRunning);
 
                     _mountTaskCompletion.Task.GetAwaiter().GetResult();
                     _mounted = true;

@@ -1,18 +1,15 @@
 using System;
+using Tmds.Linux;
 
 namespace Tmds.Fuse
 {
     using size_t = System.UIntPtr;
 
     struct fuse { }
-    struct stat { }
     struct path { }
     struct fuse_fill_dir { }
-    struct timespec { }
     enum fuse_fill_dir_flags { }
     struct fuse_file_info { }
-    struct statvfs { }
-    struct flock { }
 
     unsafe struct fuse_args
     {
@@ -36,9 +33,9 @@ namespace Tmds.Fuse
     unsafe delegate int unlink_Delegate(path* path);
     unsafe delegate int truncate_Delegate(path* path, ulong length, fuse_file_info* fi);
     unsafe delegate int rmdir_Delegate(path* path);
-    unsafe delegate int mkdir_Delegate(path* path, uint mode);
-    unsafe delegate int create_Delegate(path* path, uint mode, fuse_file_info* fi);
-    unsafe delegate int chmod_Delegate(path* path, uint mode, fuse_file_info* fi);
+    unsafe delegate int mkdir_Delegate(path* path, mode_t mode);
+    unsafe delegate int create_Delegate(path* path, mode_t mode, fuse_file_info* fi);
+    unsafe delegate int chmod_Delegate(path* path, mode_t mode, fuse_file_info* fi);
     unsafe delegate int link_Delegate(path* fromPath, path* toPath);
     unsafe delegate int utimes_Delegate(path* path, timespec* tv, fuse_file_info* fi);
     unsafe delegate int readlink_Delegate(path* path, void* buffer, size_t size);
@@ -55,7 +52,7 @@ namespace Tmds.Fuse
     unsafe delegate int opendir_delegate(path* path, fuse_file_info* fi);
     unsafe delegate int releasedir_delegate(path* path, fuse_file_info* fi);
     unsafe delegate int fsyncdir_delegate(path* path, int datasync, fuse_file_info* fi);
-    unsafe delegate int access_delegate(path* path, uint mode);
+    unsafe delegate int access_delegate(path* path, mode_t mode);
     unsafe delegate int fallocate_delegate(path* path, int mode, ulong off, ulong length, fuse_file_info* fi);
     unsafe delegate void init_delegate(IntPtr ptr, IntPtr ptr2);
     /**

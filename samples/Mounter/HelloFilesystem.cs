@@ -1,7 +1,8 @@
 using System;
 using System.Text;
 using Tmds.Fuse;
-using static Tmds.Fuse.FuseConstants;
+using Tmds.Linux;
+using static Tmds.Linux.LibC;
 
 namespace Mounter
 {
@@ -12,7 +13,7 @@ namespace Mounter
 
         public override bool SupportsMultiThreading => true;
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref Stat stat, FuseFileInfoRef fiRef)
+        public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
         {
             if (path.SequenceEqual(RootPath))
             {
@@ -29,7 +30,7 @@ namespace Mounter
             }
             else
             {
-                return ENOENT;
+                return -ENOENT;
             }
         }
 
@@ -37,12 +38,12 @@ namespace Mounter
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
-                return ENOENT;
+                return -ENOENT;
             }
 
             if ((fi.flags & O_ACCMODE) != O_RDONLY)
             {
-                return EACCES;
+                return -EACCES;
             }
 
             return 0;
@@ -64,7 +65,7 @@ namespace Mounter
         {
             if (!path.SequenceEqual(RootPath))
             {
-                return ENOENT;
+                return -ENOENT;
             }
             content.AddEntry(".");
             content.AddEntry("..");
