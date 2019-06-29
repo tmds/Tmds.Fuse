@@ -35,7 +35,7 @@ namespace Mounter
 
         public override void Dispose() => _httpClient.Dispose();
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
+        public override int GetAttr(ReadOnlySpan<char> path, ref stat stat, FuseFileInfoRef fiRef)
         {
             if (path.SequenceEqual(RootPath))
             {
@@ -51,7 +51,7 @@ namespace Mounter
             }
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
+        public override int ReadDir(ReadOnlySpan<char> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(RootPath))
             {
@@ -67,7 +67,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
+        public override int Read(ReadOnlySpan<char> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
         {
             byte[] data = _openFiles[fi.fh].Data;
             if (offset > (ulong)data.Length)
@@ -80,14 +80,14 @@ namespace Mounter
             return length;
         }
 
-        public override void Release(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
+        public override void Release(ReadOnlySpan<char> path, ref FuseFileInfo fi)
         {
             _openFiles.Remove(fi.fh);
         }
 
-        public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
+        public override int Open(ReadOnlySpan<char> path, ref FuseFileInfo fi)
         {
-            string name = Encoding.UTF8.GetString(path.Slice(1)) + "/";
+            string name = path.Slice(1).ToString() + "/";
             byte[] data = GetAsBytes(name);
             if (data == null)
             {

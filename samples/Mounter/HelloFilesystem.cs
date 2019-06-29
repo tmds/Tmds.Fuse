@@ -8,12 +8,12 @@ namespace Mounter
 {
     class HelloFileSystem : FuseFileSystemBase
     {
-        private static readonly byte[] _helloFilePath = Encoding.UTF8.GetBytes("/hello");
+        private static readonly string _helloFilePath = "/hello";
         private static readonly byte[] _helloFileContent = Encoding.UTF8.GetBytes("hello world!");
 
         public override bool SupportsMultiThreading => true;
 
-        public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
+        public override int GetAttr(ReadOnlySpan<char> path, ref stat stat, FuseFileInfoRef fiRef)
         {
             if (path.SequenceEqual(RootPath))
             {
@@ -34,7 +34,7 @@ namespace Mounter
             }
         }
 
-        public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
+        public override int Open(ReadOnlySpan<char> path, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(_helloFilePath))
             {
@@ -49,7 +49,7 @@ namespace Mounter
             return 0;
         }
 
-        public override int Read(ReadOnlySpan<byte> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
+        public override int Read(ReadOnlySpan<char> path, ulong offset, Span<byte> buffer, ref FuseFileInfo fi)
         {
             if (offset > (ulong)_helloFileContent.Length)
             {
@@ -61,7 +61,7 @@ namespace Mounter
             return length;
         }
 
-        public override int ReadDir(ReadOnlySpan<byte> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
+        public override int ReadDir(ReadOnlySpan<char> path, ulong offset, ReadDirFlags flags, DirectoryContent content, ref FuseFileInfo fi)
         {
             if (!path.SequenceEqual(RootPath))
             {
