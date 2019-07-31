@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Tmds.Linux;
@@ -111,7 +110,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.FAllocate(ToCharSpan(path), mode, offset, (long)length, ref ToFileInfoRef(fi));
+                return _fileSystem.FAllocate(ToSpan(path), mode, offset, (long)length, ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -123,7 +122,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Access(ToCharSpan(path), mode);
+                return _fileSystem.Access(ToSpan(path), mode);
             }
             catch
             {
@@ -147,7 +146,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.ReleaseDir(ToCharSpan(path), ref ToFileInfoRef(fi));
+                return _fileSystem.ReleaseDir(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -159,7 +158,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.OpenDir(ToCharSpan(path), ref ToFileInfoRef(fi));
+                return _fileSystem.OpenDir(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -171,7 +170,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.RemoveXAttr(ToCharSpan(path), ToCharSpan((path*)name));
+                return _fileSystem.RemoveXAttr(ToSpan(path), ToSpan((path*)name));
             }
             catch
             {
@@ -183,7 +182,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.ListXAttr(ToCharSpan(path), new Span<byte>(buffer, (int)size));
+                return _fileSystem.ListXAttr(ToSpan(path), new Span<byte>(buffer, (int)size));
             }
             catch
             {
@@ -195,7 +194,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.GetXAttr(ToCharSpan(path), ToCharSpan((path*)name), new Span<byte>(buffer, (int)size));
+                return _fileSystem.GetXAttr(ToSpan(path), ToSpan((path*)name), new Span<byte>(buffer, (int)size));
             }
             catch
             {
@@ -207,7 +206,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.SetXAttr(ToCharSpan(path), ToCharSpan((path*)name), new ReadOnlySpan<byte>(buffer, (int)size), flags);
+                return _fileSystem.SetXAttr(ToSpan(path), ToSpan((path*)name), new ReadOnlySpan<byte>(buffer, (int)size), flags);
             }
             catch
             {
@@ -219,7 +218,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.FSync(ToCharSpan(path), ref ToFileInfoRef(fi));
+                return _fileSystem.FSync(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -231,7 +230,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Flush(ToCharSpan(path), ref ToFileInfoRef(fi));
+                return _fileSystem.Flush(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -245,7 +244,7 @@ namespace Tmds.Fuse
             {
                 Span<statvfs> span = new Span<statvfs>(vfs, 1);
                 span.Clear();
-                return _fileSystem.StatFS(ToCharSpan(path), ref MemoryMarshal.GetReference(span));
+                return _fileSystem.StatFS(ToSpan(path), ref MemoryMarshal.GetReference(span));
             }
             catch
             {
@@ -257,7 +256,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Chown(ToCharSpan(path), uid, gid, ToFileInfo(fi));
+                return _fileSystem.Chown(ToSpan(path), uid, gid, ToFileInfo(fi));
             }
             catch
             {
@@ -269,7 +268,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Rename(ToCharSpan(path), ToCharSpan(path2), flags);
+                return _fileSystem.Rename(ToSpan(path), ToSpan(path2), flags);
             }
             catch
             {
@@ -281,7 +280,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.SymLink(ToCharSpan(path2), ToCharSpan(path));
+                return _fileSystem.SymLink(ToSpan(path2), ToSpan(path));
             }
             catch
             {
@@ -293,7 +292,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.ReadLink(ToCharSpan(path), new Span<byte>(buffer, (int)size));
+                return _fileSystem.ReadLink(ToSpan(path), new Span<byte>(buffer, (int)size));
             }
             catch
             {
@@ -306,7 +305,7 @@ namespace Tmds.Fuse
             try
             {
                 Span<timespec> specs = new Span<timespec>(tv, 2);
-                return _fileSystem.UpdateTimestamps(ToCharSpan(path),
+                return _fileSystem.UpdateTimestamps(ToSpan(path),
                                                     ref MemoryMarshal.GetReference(specs),
                                                     ref MemoryMarshal.GetReference(specs.Slice(1)),
                                                     ToFileInfo(fi));
@@ -321,7 +320,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Link(ToCharSpan(fromPath), ToCharSpan(toPath));
+                return _fileSystem.Link(ToSpan(fromPath), ToSpan(toPath));
             }
             catch
             {
@@ -333,7 +332,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.ChMod(ToCharSpan(path), mode, ToFileInfo(fi));
+                return _fileSystem.ChMod(ToSpan(path), mode, ToFileInfo(fi));
             }
             catch
             {
@@ -345,7 +344,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Truncate(ToCharSpan(path), length, ToFileInfo(fi));
+                return _fileSystem.Truncate(ToSpan(path), length, ToFileInfo(fi));
             }
             catch
             {
@@ -357,7 +356,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Create(ToCharSpan(path), mode, ref ToFileInfoRef(fi));
+                return _fileSystem.Create(ToSpan(path), mode, ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -369,7 +368,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.MkDir(ToCharSpan(path), mode);
+                return _fileSystem.MkDir(ToSpan(path), mode);
             }
             catch
             {
@@ -381,7 +380,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.RmDir(ToCharSpan(path));
+                return _fileSystem.RmDir(ToSpan(path));
             }
             catch
             {
@@ -393,7 +392,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Unlink(ToCharSpan(path));
+                return _fileSystem.Unlink(ToSpan(path));
             }
             catch
             {
@@ -406,7 +405,7 @@ namespace Tmds.Fuse
             try
             {
                 // TODO: handle size > int.MaxValue
-                return _fileSystem.Write(ToCharSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
+                return _fileSystem.Write(ToSpan(path), off, new ReadOnlySpan<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -420,7 +419,7 @@ namespace Tmds.Fuse
             {
                 Span<stat> span = new Span<stat>(stat, 1);
                 span.Clear();
-                return _fileSystem.GetAttr(ToCharSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
+                return _fileSystem.GetAttr(ToSpan(path), ref MemoryMarshal.GetReference(span), ToFileInfo(fi));
             }
             catch
             {
@@ -444,7 +443,7 @@ namespace Tmds.Fuse
                     _previousFiller = new ManagedFiller(filler, fillDelegate);
                 }
 
-                return _fileSystem.ReadDir(ToCharSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ref ToFileInfoRef(fi));
+                return _fileSystem.ReadDir(ToSpan(path), offset, (ReadDirFlags)flags, ToDirectoryContent(buf, fillDelegate), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -456,7 +455,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                return _fileSystem.Open(ToCharSpan(path), ref ToFileInfoRef(fi));
+                return _fileSystem.Open(ToSpan(path), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -469,7 +468,7 @@ namespace Tmds.Fuse
             try
             {
                 // TODO: handle size > int.MaxValue
-                return _fileSystem.Read(ToCharSpan(path), off, new Span<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
+                return _fileSystem.Read(ToSpan(path), off, new Span<byte>(buffer, (int)size), ref ToFileInfoRef(fi));
             }
             catch
             {
@@ -481,7 +480,7 @@ namespace Tmds.Fuse
         {
             try
             {
-                _fileSystem.Release(ToCharSpan(path), ref ToFileInfoRef(fi));
+                _fileSystem.Release(ToSpan(path), ref ToFileInfoRef(fi));
                 return 0;
             }
             catch
@@ -518,12 +517,6 @@ namespace Tmds.Fuse
         {
             var span = new ReadOnlySpan<byte>(path, int.MaxValue);
             return span.Slice(0, span.IndexOf((byte)0));
-        }
-
-        private unsafe ReadOnlySpan<char> ToCharSpan(path* path)
-        {
-            var span = new ReadOnlySpan<byte>(path, int.MaxValue);
-            return Encoding.UTF8.GetString(span.Slice(0, span.IndexOf((byte)0)));
         }
 
         private unsafe DirectoryContent ToDirectoryContent(void* buffer, fuse_fill_dir_Delegate fillDelegate) => new DirectoryContent(buffer, fillDelegate);

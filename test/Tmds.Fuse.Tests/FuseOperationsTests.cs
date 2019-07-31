@@ -13,9 +13,9 @@ namespace Tmds.Fuse.Tests
     {
         class FileSystem : FuseFileSystemBase
         {
-            public override int GetAttr(ReadOnlySpan<char> path, ref stat stat, FuseFileInfoRef fiRef)
+            public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
             {
-                if (path.SequenceEqual("/GetAttr_file1"))
+                if (path.SequenceEqual(Encoding.UTF8.GetBytes("/GetAttr_file1")))
                 {
                     stat.st_atim = new DateTime(2000, 12, 1, 23, 13, 59, 200, DateTimeKind.Utc).ToTimespec();
                     stat.st_mtim = new DateTime(2001, 11, 2, 22, 12, 58, 199, DateTimeKind.Utc).ToTimespec();
@@ -27,7 +27,7 @@ namespace Tmds.Fuse.Tests
                     stat.st_mode = S_IFREG | 0b100_010_001;
                     return 0;
                 }
-                else if (path.SequenceEqual("/GetAttr_dir1"))
+                else if (path.SequenceEqual(Encoding.UTF8.GetBytes("/GetAttr_dir1")))
                 {
                     stat.st_mode = S_IFDIR | 0b100_010_001;
                     return 0;

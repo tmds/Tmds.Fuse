@@ -12,14 +12,14 @@ namespace Tmds.Fuse.Tests
     {
         class DummyFileSystem : FuseFileSystemBase
         {
-            public override int GetAttr(ReadOnlySpan<char> path, ref stat stat, FuseFileInfoRef fiRef)
+            public override int GetAttr(ReadOnlySpan<byte> path, ref stat stat, FuseFileInfoRef fiRef)
             {
                 stat.st_nlink = 1;
                 stat.st_mode = S_IFREG;
                 return 0;
             }
 
-            public override int Open(ReadOnlySpan<char> path, ref FuseFileInfo fi)
+            public override int Open(ReadOnlySpan<byte> path, ref FuseFileInfo fi)
                 => 0;
 
             public int DisposeCount { get; set; }
