@@ -625,7 +625,7 @@ namespace Tmds.Fuse
                                     }
                                 }
                             }
-						}
+                        }
                         catch (Exception e)
                         {
                             _mountTaskCompletion.TrySetException(e);
